@@ -1,0 +1,29 @@
+# Version control / editor / OS cruft
+.git
+.gitignore
+.claude
+.vscode
+.idea
+*.DS_Store
+
+# Secrets and local env
+.env
+.env.*
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+*.egg-info
+
+# Course/reference material — not part of the runtime application
+*.md
+notebook*.py
+sample_*.py
+
+# MLflow local artifacts (only relevant if run without a remote tracking server)
+mlruns
+mlartifacts
+*.db
