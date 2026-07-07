@@ -46,8 +46,19 @@ def _ensure_mlflow_configured() -> None:
     _configured = True
 
 
+def redact_secrets(text: str) -> str:
+    """Strip query-string secrets (api_key=..., token=..., etc.) from any text.
+
+    Public because call sites outside this module need the same protection —
+    e.g. an agent loop relaying a caught exception's message back into an LLM
+    conversation, where an unredacted API key could otherwise be transmitted
+    to a hosted LLM provider, not just logged to a trace.
+    """
+    return _SECRET_PARAM_PATTERN.sub(r"\1=***REDACTED***", text)
+
+
 def _finalize(text: str) -> str:
-    text = _SECRET_PARAM_PATTERN.sub(r"\1=***REDACTED***", text)
+    text = redact_secrets(text)
     if len(text) > _MAX_ATTR_LEN:
         return text[:_MAX_ATTR_LEN] + "...<truncated>"
     return text

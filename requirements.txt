@@ -7,3 +7,4 @@ requests==2.34.2
 openai==2.44.0
 PyYAML==6.0.3
 mlflow-skinny==3.14.0
+python-dotenv==1.2.2

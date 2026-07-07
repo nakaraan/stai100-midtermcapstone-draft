@@ -4,14 +4,14 @@
     {
       "name": "agent-api",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"],
-      "port": 8000
+      "runtimeArgs": ["-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8010"],
+      "port": 8010
     },
     {
       "name": "agent-ui",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "streamlit", "run", "app/ui.py", "--server.port", "8501", "--server.headless", "true"],
-      "port": 8501
+      "runtimeArgs": ["-m", "streamlit", "run", "app/ui.py", "--server.port", "8511", "--server.headless", "true"],
+      "port": 8511
     }
   ]
 }

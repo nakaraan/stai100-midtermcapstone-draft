@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import csv
 import io
+import time
+import zipfile
 from typing import Optional
 
 import requests
@@ -21,6 +23,10 @@ from utils.telemetry import trace_tool
 
 DEFAULT_ATTRIBUTES = ["ghi", "dni", "dhi", "air_temperature", "wind_speed"]
 DEFAULT_INTERVAL_MINUTES = 60
+# NREL's on-demand export is an async job: the metadata call can return a
+# downloadUrl before the file actually lands in S3, which briefly 403s/404s.
+# Short backoff covers that race without masking a genuinely bad URL.
+DOWNLOAD_RETRY_DELAYS_SECONDS = (2, 4, 8)
 
 
 def _wkt_point(latitude: float, longitude: float) -> str:
@@ -82,10 +88,38 @@ def fetch_nsrdb_data(
 
 @trace_tool(name="nrel_nsrdb_csv_download")
 def download_nsrdb_csv(download_url: str) -> str:
-    """GET the actual CSV body from an NREL-provided download link."""
+    """GET the actual CSV body from an NREL-provided download link.
+
+    The link points to a ZIP archive bundling the CSV (not raw CSV text), and
+    can briefly 403/404 before the async export job finishes uploading —
+    both handled here.
+    """
     settings = get_settings()
-    response = requests.get(download_url, timeout=settings.nrel_request_timeout_seconds)
-    response.raise_for_status()
+    last_exc: Optional[Exception] = None
+    for delay in (0, *DOWNLOAD_RETRY_DELAYS_SECONDS):
+        if delay:
+            time.sleep(delay)
+        try:
+            response = requests.get(download_url, timeout=settings.nrel_request_timeout_seconds)
+            response.raise_for_status()
+            return _unwrap_csv(response)
+        except requests.exceptions.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status not in (403, 404):
+                raise
+            last_exc = exc  # likely the export job hasn't finished uploading yet — retry
+    raise last_exc
+
+
+def _unwrap_csv(response: requests.Response) -> str:
+    """Return CSV text, unzipping first if NREL bundled the CSV in a ZIP archive."""
+    content_type = response.headers.get("Content-Type", "")
+    if "zip" in content_type or response.content[:2] == b"PK":
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            csv_names = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+            if not csv_names:
+                raise ValueError(f"NREL ZIP download had no CSV inside it: {archive.namelist()}")
+            return archive.read(csv_names[0]).decode("utf-8")
     return response.text
 
 

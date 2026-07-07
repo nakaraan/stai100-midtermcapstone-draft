@@ -126,7 +126,9 @@ flowchart TD
 
 - Python 3.11+
 - Docker Desktop (or Docker Engine), if using the containerized path
-- A free NREL API key — sign up at <https://developer.nrel.gov/signup/>
+- A free NREL API key — sign up at <https://developer.nlr.gov/signup/> (NREL's developer
+  portal moved from `developer.nrel.gov` to `developer.nlr.gov`; both are registered to
+  DOE/NREL per the official CISA `.gov` registry, so this isn't a typo)
 - An OpenAI-API-compatible LLM endpoint. Either:
   - **Local:** [Ollama](https://ollama.com) — `ollama serve`, then `ollama pull llama3.2:3b` (or any model you configure)
   - **Hosted:** any OpenAI-compatible provider — set `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` accordingly

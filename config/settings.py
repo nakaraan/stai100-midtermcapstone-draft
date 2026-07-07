@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     )
 
     # --- NREL / NSRDB API ---
-    # Sign up for a free key at https://developer.nrel.gov/signup/
+    # Sign up for a free key at https://developer.nlr.gov/signup/
+    # NOTE: developer.nrel.gov was retired; developer.nlr.gov is the current
+    # domain (same registrant per the official CISA .gov registry — Dept. of
+    # Energy / NREL, Golden CO — and fronted by cloud.gov/api.data.gov, verified
+    # 2026-07-08). Confirm current domain periodically since this program has a
+    # history of domain confusion — don't restore the old nrel.gov value blind.
     nrel_api_key: str = Field(..., alias="NREL_API_KEY")
     nrel_api_email: str = Field(..., alias="NREL_API_EMAIL")
 
@@ -22,7 +27,7 @@ class Settings(BaseSettings):
     # (e.g. the Caloocan warehouse sample query) fall under the Himawari (Asia/Pacific)
     # coverage area, so that is the default download endpoint.
     nrel_nsrdb_base_url: str = Field(
-        default="https://developer.nrel.gov/api/nsrdb/v2/solar/himawari-download.json",
+        default="https://developer.nlr.gov/api/nsrdb/v2/solar/himawari-download.json",
         alias="NREL_NSRDB_BASE_URL",
     )
     nrel_request_timeout_seconds: int = Field(default=60, alias="NREL_REQUEST_TIMEOUT_SECONDS")

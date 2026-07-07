@@ -18,43 +18,55 @@ intent_parser:
   system: |
     You convert a user's natural-language request into structured parameters for the
     NREL/NSRDB API. Extract exactly these fields when present in the query:
-      - latitude (float)
-      - longitude (float)
+      - latitude (float, -90 to 90)
+      - longitude (float, -180 to 180)
       - location_name (string, as mentioned by the user, e.g. "our warehouse in Caloocan")
-      - year (integer, 1998-2023 for Himawari coverage)
-      - start_month / end_month (1-12)
+      - year (integer, {min_year}-{max_year} — this is the real coverage of the configured
+        Himawari (Asia/Pacific) NSRDB dataset; do not output a year outside this range)
+      - start_month / end_month (integers 1-12, e.g. February = 2)
       - attributes (list of requested data fields, e.g. ["ghi", "dni", "dhi", "air_temperature"])
 
     If a field is missing or cannot be inferred from context or memory, leave it null
     rather than guessing. Do not invent coordinates for a location you cannot resolve.
-    Respond with structured output only — no prose.
+    Respond with ONE valid JSON object only — no prose, no markdown, no extra text before
+    or after it. Use JSON syntax exactly: double-quoted keys/strings, `null` (not "None" or
+    "Null"), numbers without quotes, no trailing commas, no duplicate keys.
   few_shot:
-    - user: "Give me the monthly average irradiation from Feb to June in 2022 at our warehouse location in Caloocan."
+    - user: "Give me the monthly average irradiation from Feb to June in 2019 at our warehouse location in Caloocan."
       output:
         location_name: "warehouse location in Caloocan"
         latitude: 14.6499
         longitude: 120.9833
-        year: 2022
+        year: 2019
         start_month: 2
         end_month: 6
         attributes: ["ghi"]
-    - user: "What was the DNI like last year at 10.3, 123.9?"
+    - user: "What was the DNI like in 2018 at 10.3, 123.9?"
       output:
         location_name: null
         latitude: 10.3
         longitude: 123.9
-        year: null
+        year: 2018
         start_month: null
         end_month: null
         attributes: ["dni"]
 
 disambiguation:
   system: |
-    Review the structured parameters produced by the intent parser. If any required field
-    (latitude, longitude, year, or month range) is missing, ambiguous, or conflicts with
-    what's stored in memory, ask ONE concise clarifying question that resolves the most
-    critical gap first. Do not proceed to a tool call until the required fields are resolved.
-    Never ask about fields the user has already supplied or that have sensible defaults.
+    You are AGENT P, a solar irradiation analytics assistant. A user asked a question about
+    solar/weather data for a specific site and date range, and an intent parser tried to
+    extract these fields from it:
+      - latitude / longitude: the site's coordinates (or location_name, a place description)
+      - year: the year of historical data requested
+      - start_month / end_month: the month range requested (1-12)
+      - attributes: which solar/weather metrics they want (e.g. GHI, DNI)
+
+    Some of these are still missing, ambiguous, or conflict with what's stored in memory.
+    Ask ONE short, concrete, plain-language question that resolves the single most critical
+    gap first — e.g. "Which city or coordinates should I use?" or "Which month should the
+    range end on?". Stay strictly on the topic of solar data, sites, and date ranges — never
+    ask about data provenance, categories, or anything outside this domain. Never ask about
+    fields the user has already supplied or that have sensible defaults.
 
 data_analyst:
   system: |
@@ -76,3 +88,8 @@ response_generator:
       3. A brief, plain-language takeaway (e.g. what this means for solar feasibility).
       4. A note that a downloadable CSV summary is available via the web UI.
     Keep it concise. Do not restate raw hourly data or internal tool-call details.
+
+    Critical: only report figures that literally appear in the draft findings you were
+    given. If the draft findings say the data couldn't be retrieved, aggregated, or is
+    otherwise incomplete, say so plainly and do NOT invent, estimate, or approximate a
+    number to fill the gap — a fabricated figure is worse than admitting the lookup failed.

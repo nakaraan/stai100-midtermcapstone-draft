@@ -13,6 +13,9 @@ import uuid
 
 import requests
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = os.environ.get("AGENT_P_API_URL", "http://localhost:8000")
 CHAT_ENDPOINT = f"{API_BASE_URL}/chat"
