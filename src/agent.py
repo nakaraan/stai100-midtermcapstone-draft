@@ -82,7 +82,7 @@ def _call_llm(
     """Send a chat completion request and return (text, token-usage dict)."""
     settings = get_settings()
     response = _client().chat.completions.create(
-        model=model or settings.llm_model, messages=messages, stop=stop
+        model=model or settings.llm_model, messages=messages, stop=stop, temperature=0.1
     )
     usage = response.usage
     usage_dict = (

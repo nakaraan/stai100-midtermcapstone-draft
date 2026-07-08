@@ -12,9 +12,14 @@ from __future__ import annotations
 
 import csv
 import io
+import json as _json
+import os
+import subprocess
+import tempfile
 import time
 import zipfile
 from typing import Optional
+from urllib.parse import urlencode
 
 import requests
 
@@ -27,6 +32,69 @@ DEFAULT_INTERVAL_MINUTES = 60
 # downloadUrl before the file actually lands in S3, which briefly 403s/404s.
 # Short backoff covers that race without masking a genuinely bad URL.
 DOWNLOAD_RETRY_DELAYS_SECONDS = (2, 4, 8)
+
+
+class _CurlResponse:
+    """Minimal requests.Response-alike backing _curl_get()."""
+
+    def __init__(self, status_code: int, headers: dict, content: bytes):
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
+
+    @property
+    def text(self) -> str:
+        return self.content.decode("utf-8", errors="replace")
+
+    def json(self):
+        return _json.loads(self.text)
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            exc = requests.exceptions.HTTPError(f"{self.status_code} error for url")
+            exc.response = self
+            raise exc
+
+
+def _curl_get(url: str, params: Optional[dict] = None, timeout: int = 60) -> _CurlResponse:
+    """GET via the curl.exe binary instead of the `requests` library.
+
+    Workaround for a machine-specific issue where Python's own requests/socket
+    stack hangs indefinitely on outbound HTTPS calls to NREL (DNS, hosts-file
+    override, raw socket connects, and NO_PROXY were all tried and ruled out
+    as the cause), while curl.exe reliably connects and responds in well under
+    a second on the same network. Shelling out to the known-working binary was
+    the fastest reliable fix available before a deadline.
+    """
+    full_url = f"{url}?{urlencode(params)}" if params else url
+    body_fd, body_path = tempfile.mkstemp()
+    header_fd, header_path = tempfile.mkstemp()
+    os.close(body_fd)
+    os.close(header_fd)
+    try:
+        result = subprocess.run(
+            ["curl.exe", "-sS", "--max-time", str(timeout), "-D", header_path, "-o", body_path, "-w", "%{http_code}", full_url],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise requests.exceptions.ConnectionError(f"curl.exe failed (exit {result.returncode}): {result.stderr}")
+        status_code = int(result.stdout.strip() or 0)
+        with open(header_path, "r", encoding="utf-8", errors="ignore") as hf:
+            header_lines = hf.read().splitlines()
+        with open(body_path, "rb") as bf:
+            content = bf.read()
+    finally:
+        os.unlink(body_path)
+        os.unlink(header_path)
+
+    headers = {}
+    for line in header_lines:
+        if ":" in line:
+            key, _, value = line.partition(":")
+            headers[key.strip()] = value.strip()
+
+    return _CurlResponse(status_code, headers, content)
 
 
 def _wkt_point(latitude: float, longitude: float) -> str:
@@ -77,7 +145,7 @@ def fetch_nsrdb_data(
     """
     settings = get_settings()
     params = _build_query_params(latitude, longitude, year, attributes, interval, leap_day, utc)
-    response = requests.get(
+    response = _curl_get(
         settings.nrel_nsrdb_base_url,
         params=params,
         timeout=settings.nrel_request_timeout_seconds,
@@ -100,7 +168,7 @@ def download_nsrdb_csv(download_url: str) -> str:
         if delay:
             time.sleep(delay)
         try:
-            response = requests.get(download_url, timeout=settings.nrel_request_timeout_seconds)
+            response = _curl_get(download_url, timeout=settings.nrel_request_timeout_seconds)
             response.raise_for_status()
             return _unwrap_csv(response)
         except requests.exceptions.HTTPError as exc:

@@ -1,0 +1,1351 @@
+================================================================================
+C:\Users\Akaraan\Downloads\[SLIDES] 05a - Prototyping and Deploying Agentic Applications (1).pdf
+================================================================================
+--- page 1 ---
+
+--- page 2 ---
+RECAP
+What we know so far:
+
+Prompt 
+Engineering
+Prompting techniques & 
+sampling parameters to 
+control variation of LLM 
+output
+
+Structured Output 
+& Disambiguation
+Intent classification & 
+slot filling, handling 
+incomplete input, JSON 
+output formatting
+
+Retrieval
+Augmented
+Generation (RAG)
+Building & retrieving from 
+a knowledge base for 
+context 
+(reference facts, private 
+data, domain-specific 
+knowledge)
+
+Memory & 
+Guardrails
+Multi-turn context, 
+validating input & 
+output flows
+--- page 3 ---
+RECAP
+What we know so far:
+
+Prompt 
+Engineering
+Prompting techniques & 
+sampling parameters to 
+control variation of LLM 
+output
+
+Structured Output 
+& Disambiguation
+Intent classification & 
+slot filling, handling 
+incomplete input, JSON 
+output formatting
+
+Retrieval
+Augmented
+Generation (RAG)
+Building & retrieving from 
+a knowledge base for 
+context 
+(reference facts, private 
+data, domain-specific 
+knowledge)
+
+Memory & 
+Guardrails
+Multi-turn context, 
+validating input & 
+output flows
+What else do we need to build an agentic application?
+--- page 4 ---
+Week 5: Prototyping and Deploying 
+Agentic Applications
+Part 1: Lecture — Prototyping and Shipping AI Solutions
+--- page 5 ---
+Part 1: Foundations
+1. Prototyping AI Agents
+a. Building Chat Interfaces: 
+Streamlit & Gradio
+b. Conversational UX: 
+Streaming, Typing, Error Handling
+c. API Endpoint Development: 
+FastAPI & Docker
+2. Moving from Prototype to Production
+a. LLMOps Foundations: 
+LLM Lifecycle, Monitoring, Versioning
+b. Observability Tooling: 
+LangSmith, MLFlow, Weights & Biases
+
+--- page 6 ---
+Week 5: Prototyping and Deploying Agentic Applications
+● Retail Sentiment Analysis
+● Food Ordering Agent
+● University FAQ Bot
+● Healthcare Information 
+Chatbot
+From Homeworks 1 to 4, we 
+were exposed to Agentic AI 
+use cases:
+ The code was shared on
+--- page 7 ---
+is a great 
+collaboration 
+tool for 
+developers!!
+Ideal for experiments, not for general user 
+consumption…
+BUT…
+installing 
+dependencies
+running the code
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 8 ---
+
+--- page 9 ---
+
+--- page 10 ---
+1a
+/ Chat Interfaces
+Gradio & Streamlit for Rapid Prototyping
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 11 ---
+UI Elements
+Core building blocks for machine learning interfaces
+Interactive Components
+● Inputs: Textbox, Slider, Dropdown, Number, Checkbox
+● Multimodal: Image, Audio, Video, File upload 
+components
+● Chat: Chat Interface for rapid message history
+● Layouts: Rows, Columns, Tabs, and Accordions for 
+organization
+● Customization: Styling and events handling (click, 
+change/update)
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 12 ---
+Gradio vs. Streamlit
+Two zero-config Python frameworks for chat interfaces
+Gradio
+— zero-config chat UI in ~5 lines
+● gr.ChatInterface wraps a function — no HTML 
+needed
+● Built-in message history & streaming via yield
+● Native file upload + multimodal (image, audio)
+● Hugging Face Spaces — free hosting & share 
+links
+● Best for: ML demos, hackathons, rapid 
+prototyping
+Streamlit
+— st.chat_message + st.chat_input primitives
+● Streaming via st.write_stream + generators
+● st.session_state holds full conversation 
+memory
+● Rich data viz (Plotly, Altair) in the same app
+● Multi-page apps and sidebars out of the box
+● Best for: data-heavy & analyst-facing 
+dashboards
+Both ship via pip and run locally in under 60 seconds — no frontend knowledge required.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 13 ---
+Gradio vs. Streamlit
+Two zero-config Python frameworks for chat interfaces
+Gradio
+Zero-config chat UI in ~5 lines
+Streamlit
+st.chat_message + st.chat_input primitives
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 14 ---
+1b
+/ The Chat Interface
+Conversational User Experience
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 15 ---
+User Experience (UX) design is 
+the process of creating 
+products that are intuitive, 
+accessible, and enjoyable.
+We also have UX design patterns for Agentic 
+applications!
+Patterns:
+● Responds to hover
+● Changes button text / icon
+● Changes color states
+Common User Experience Design
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 16 ---
+Conversational UX Design
+Top 3 UX design patterns in agentic & conversational applications:
+
+Streaming
+Displays responses 
+token-by-token as they are 
+generated.
+● Reduces perceived 
+latency
+● Keeps user engaged
+● Immediate feedback
+
+Indicators
+Visual cues that the system is 
+processing the request.
+● Animated '...' dots
+● Prevents "frozen" feel
+● Status communication
+
+Errors
+Clear communication when 
+something goes wrong.
+● Graceful degradation
+● Actionable feedback
+● Clear exit paths
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 17 ---
+Conversational UX Design
+ Streaming
+Streaming Responses
+● Token-by-token via SSE / 
+WebSockets
+● Cuts perceived latency by 
+~70%
+● Users abandon after 3s of 
+silence
+● First-token time matters most
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 18 ---
+Conversational UX Design
+ Indicators
+Visual Cues
+● Animated '...' while model 
+generates
+● Shows system is alive & 
+working
+● Render within 200ms of 
+submit
+● Avoids 'is it frozen?' anxiety
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 19 ---
+Conversational UX Design
+ Errors
+Graceful Recovery
+● Graceful fallback for 429 / 5xx
+● Never show raw stack traces
+● User-friendly retry copy
+● Summarise + retry on overflow
+Don’t show something like.
+ {“Error”: “404”, “Timestamp”: 2025-01-08 06-02-24, 
+“Request”: “Important document retrieval”}
+
+We can’t access the document at the moment. Do 
+you want me to try again?
+Show something like.
+
+
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 20 ---
+1c
+/ API Endpoint Development
+RESTful Server with FastAPI
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 21 ---
+Web App Infrastructure
+
+LLM
+USER
+Phase 1: Basic LLM Interface
+At first, we interact with the LLM through it’s given API.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 22 ---
+Web App Infrastructure
+
+
+LLM
+USER
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+++ processes to improve LLM generation
+We then introduced new processes like Prompt Engineering, RAG, and 
+Guardrails to help us improve our LLM generation.
+Phase 2: Improve the inputs
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 23 ---
+Web App Infrastructure
+
+
+LLM
+USER
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+This whole pipeline was implemented inside of Google Colab / a Jupyter 
+notebook. It was good enough for one user or local experiments
+++ processes to improve LLM generation
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 24 ---
+
+LLM
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+What about for multiple users?
+
+USER
+USER
+USER
+We can’t make them run their own pipelines locally because of 
+confidential intellectual property and private documents.
+
+USER
+USER
+USER
+++ processes to improve LLM generation
+--- page 25 ---
+Web App Infrastructure
+
+ LLM
+USER
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+We separate the implementation to limit what the user can see.
+Phase 3: Separation
+
+Frontend
+Backend
+++ processes to improve LLM generation
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 26 ---
+Web App Infrastructure
+
+ LLM
+USER
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+Instead of duplicating the entire codebase, when we have multiple users - 
+we just instantiate more frontend units.
+Phase 3: Separation
+
+Frontend
+Single Backend
+USER
+
+Frontend
+USER
+
+Frontend
+++ processes to improve LLM generation
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 27 ---
+
+ LLM
+USER
+RAG
+
+Guardrails
+
+Prompt 
+Engineering
+
+Frontend
+Single Backend
+USER
+
+Frontend
+USER
+
+Frontend
+How do we actually connect these two 
+components in a production environment?
+++ processes to improve LLM generation
+--- page 28 ---
+The RESTful Architecture
+Standardizing communication between clients and servers in production
+ What is REST?
+Representational State 
+Transfer (REST) is an 
+architectural style for 
+distributed hypermedia 
+systems. It treats every 
+component as a resource 
+accessible via standard 
+URIs.
+ How it Works
+• Uses HTTP verbs: GET, 
+POST, PUT, DELETE
+• Stateless: Each request 
+contains all info needed to 
+process it
+• Exchanges JSON or XML 
+representations
+ Why Use It?
+• Scalability: Separates 
+client and server concerns
+• Interoperability: 
+Language agnostic 
+(Python, JS, Go)
+• Simplicity: Leverages 
+existing web infrastructure
+ FastAPI Python Implementation
+FastAPI automatically generates OpenAPI schemas for RESTful endpoints, ensuring high-performance execution and 
+instant compatibility with frontend teams.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 29 ---
+RESTful API Design with FastAPI
+Production-ready endpoints in pure Python — async by default
+  
+
+Request / Response Schemas
+• Pydantic models enforce strict 
+types
+• ChatRequest: messages, model, 
+temperature
+• ChatResponse: content, 
+token_count, latency
+• 422 auto-returned on invalid 
+payloads
+Authentication Basics
+• API key via Depends() dependency
+• OAuth2 / JWT for user-scoped 
+access
+• Never embed keys in client code
+• Rotate keys via env vars + secrets
+Streaming Endpoints
+• StreamingResponse for SSE
+• Async generators yield tokens
+• Content-Type: text/event-stream
+• Works with curl, fetch, htmx
+Swagger / OpenAPI Docs — free with every FastAPI app
+Auto-generated at /docs (Swagger UI) and /redoc. FastAPI infers schemas from Pydantic — zero extra config. Share with 
+frontend / mobile teams instantly; they can hit Try-It-Out without reading any code.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 30 ---
+1c
+/ Package Management and 
+Development Environments
+Local venv/Conda and Docker
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 31 ---
+Python Package Manager: PyPI
+The Python Package Index (PyPI) is a repository of software for the Python programming language.
+PyPI helps you find and install software developed and shared by the Python community.
+Package authors use PyPI to distribute their 
+software.
+Learn how to package your Python code for 
+PyPI
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 32 ---
+Local: Python Virtual Environment
+
+1. Install Virtualenv
+pip install virtualenv
+
+2. Setup Project & Environment
+# Create and enter directory
+mkdir <projectA> && cd <projectA>
+# Initialize environment
+python -m venv <env-name>
+ 3. Activation
+source env/bin/activate  4. Verify Packages
+pip freeze
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 33 ---
+Local: Conda Environment 
+
+1. Create Environment
+# Create a new environment with a specific python version
+conda create --name <env-name> python=3.12.x
+
+2. Activation
+# Switch to your newly created environment
+conda activate <env-name>
+ 3. List Envs
+conda env list  4. Remove Env
+conda remove -n <env-name> --all
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 34 ---
+Shipping Your Application
+
+A platform used to build, test and deploy 
+applications quickly in a loosely isolated 
+environment.
+
+Isolation lets you run multiple instances 
+simultaneously on a given host.
+
+Package applications with all dependencies into 
+a standardized unit known as “containers”.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 35 ---
+Docker Architecture
+Docker Containers
+Container 1
+App + Bins/Libs
+Container 2
+App + Bins/Libs
+Docker Image
+Docker Engine
+Host OS and Hardware
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 36 ---
+Docker Containers vs. Virtual Machines
+Docker Container
+● Virtualization is at the application 
+layer, runs on top of the host OS
+● Manages dependencies in the 
+application level
+● Resource usage is less
+● Can be started within seconds
+● Easy to replicate, even with multiple 
+instances
+Virtual Machine
+● Virtualization is both at the OS kernel 
+and the application layer
+● Manages dependencies at the system 
+level
+● Resource usage can be intensive
+● Takes few minutes to start
+● Difficult to replicate, especially with 
+increasing number of VM instances
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 37 ---
+Docker Containers vs. Virtual Machines
+Docker Containers
+Host OS and Hardware
+Docker Engine
+Bins / Libraries
+Application
+Container 1
+Bins / Libraries
+Application
+Container 2
+Virtual Machines
+Host OS and Hardware
+Hypervisor
+Guest OS
+Bins / Libraries
+Application
+VM 1
+Guest OS
+Bins / Libraries
+Application
+VM 2
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 38 ---
+Docker Images vs. Containers
+Image
+● Blueprint of a container
+● Created only once; contains 
+dependencies, configs, scripts, and 
+binaries
+● Consists of multiple read-only layers
+● Cannot attach volumes and 
+networks
+Container
+● Runtime instance of an image
+● Multiple instances can run from one 
+image, each with unique state
+● Features a single readable and 
+writable layer
+● Can attach volumes and networks
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 39 ---
+Packaging your Application
+ Build Images
+• Multi-stage Dockerfile = lean 
+runtime
+• python:3.11-slim base ≈ 145MB
+• Copy only needed files 
+(.dockerignore)
+• Pin versions in requirements.txt
+ Run Containers
+• docker run -p 8000:8000 ragapp
+• Use --restart=always in 
+production
+• Mount volumes for logs and 
+models
+• Set env vars via --env-file
+ Deploy
+• docker-compose links API + Redis 
++ DB
+• Single docker-compose.yml = full 
+stack
+• docker compose up — one 
+command
+• Step toward Kubernetes / Cloud 
+Run
+ Docker Best Practices Summary
+Always use multi-stage builds to keep image sizes small and production environments secure. Ensure env vars are managed outside of 
+images for flexibility.
+Reproducible deployment — build once, run anywhere
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 40 ---
+Prototyping Applications
+ Local Development
+venv / Conda Environments
+● Isolated Python dependencies
+● Lightweight for rapid iteration
+● Relies on local Host OS drivers
+● Risk of "Works on my machine"
+ Staging & Production
+Docker Images & Containers
+● Full OS-level virtualization
+● Immutable, reproducible builds
+● Includes libraries and binaries
+● Scale across any infrastructure
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 41 ---
+2
+/ Moving from Prototype to 
+Production
+The LLM application lifecycle: 
+development → testing → deployment 
+→ monitoring [12][13]
+Key concepts: prompt versioning, model 
+registry, experiment tracking
+Monitoring basics: latency tracking, 
+token usage, cost estimation
+Observability tools overview: 
+LangSmith, Phoenix, Weights & Biases
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 42 ---
+2a
+/ LLMOps Foundations
+Operating Agentic Applications in Production
+The LLM application lifecycle: 
+development → testing → deployment 
+→ monitoring [12][13]
+Key concepts: prompt versioning, model 
+registry, experiment tracking
+Monitoring basics: latency tracking, 
+token usage, cost estimation
+Observability tools overview: 
+LangSmith, Phoenix, Weights & Biases
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 43 ---
+/ DevOps Foundations
+Accelerating Software Delivery through Automation & Collaboration
+Continuous Delivery
+Automating the path from 
+code commit to 
+production-ready artifact 
+with CI/CD pipelines.
+Infrastructure as Code
+Managing environments 
+programmatically using 
+Terraform or Ansible for 
+consistency.
+Observability
+Real-time monitoring and 
+logging to ensure system 
+health and rapid incident 
+response.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 44 ---
+/ MLOps Foundations
+Standardizing the Machine Learning Lifecycle for Reliable Production
+Model Training
+Automated training 
+pipelines with experiment 
+tracking and model 
+registry.
+Data Validation
+Ensuring data accuracy and 
+integrity through 
+automated schema and drift 
+checks.
+Model Performance
+Statistical monitoring of 
+prediction accuracy and 
+model drift in real-time.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 45 ---
+/ LLMOps Foundations
+Operationalizing Large Language Models for Scalable Agentic Solutions
+Prompt Management
+Versioning, A/B testing 
+prompt variants, and 
+centralized prompt 
+registries.
+Monitoring & Safety
+Real-time tracking of 
+latency, cost, 
+hallucinations, and safety 
+guardrails.
+Tracing & Debugging
+End-to-end tracing of 
+agent decisions and 
+reasoning chains for 
+optimization.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 46 ---
+DevOps vs MLOps vs LLMOps
+ DevOps
+Code & Deploy
+● CI/CD Pipelines
+● App Deployment
+● System Monitoring
+● Infrastructure as Code
+ MLOps
+Train & Manage
+● Model Training
+● Model Testing
+● Performance Tracking
+● Model Registry
+ LLMOps
+Build & Operate LLMs
+● Dataset Preparation
+● Prompt Optimization
+● Monitoring & Safety
+● Scaling LLM Apps
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 47 ---
+The Agentic Application Lifecycle
+Development → Testing → Deployment → Monitoring
+ Development
+• Prompt design & iteration
+• Model selection (Opus / 
+Sonnet / Haiku / Gemma)
+• RAG pipeline assembly
+• Knowledge base building
+• Integration with tools / 
+functions
+ Testing
+• Eval harnesses 
+(LangSmith, ragas)
+• Regression suites on the 
+happy path
+• Red-teaming for 
+jailbreaks
+• Latency & cost 
+benchmarks
+ Deployment
+• Containerize (Docker)
+• CI/CD pipeline (GitHub 
+Actions)
+• A/B traffic split between 
+prompts
+• Rollback strategy ready
+ Monitoring
+• Latency p95/p99 
+dashboards
+• Token usage & cost / day
+• Drift & hallucination alerts
+• User feedback loop
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 48 ---
+Experiment TrackingModel RegistryPrompt Versioning
+Key Concepts & Tooling Recommendations
+● Treat prompts like 
+code — git-tag, diff, 
+roll back
+● Different prompt 
+versions may lead 
+to different 
+performances
+ 
+● Track LLM versions, 
+fine-tunes, adapter 
+weights
+● Specific models 
+perform 
+better/worse on 
+specific tasks.
+● Log evaluation 
+metrics & cost per 
+prompt variant
+● Different 
+prompt+model 
+combinations can 
+get out of hand 
+quickly.
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 49 ---
+2b
+/ Observability Tooling
+Monitoring usage metrics and token cost
+The LLM application lifecycle: 
+development → testing → deployment 
+→ monitoring [12][13]
+Key concepts: prompt versioning, model 
+registry, experiment tracking
+Monitoring basics: latency tracking, 
+token usage, cost estimation
+Observability tools overview: 
+LangSmith, Phoenix, Weights & Biases
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 50 ---
+
+--- page 51 ---
+
+--- page 52 ---
+Observability Tooling
+Three popular stacks — pick one and instrument early
+ ML Flow
+Open-source observability
+• Self-hosted; no data leaves 
+your VPC
+• OpenTelemetry-compatible 
+spans
+• Works with LangChain
+ LangSmith
+LangChain-native tracing
+• Full chain visibility — every call 
+traced
+• Prompt diffs across versions
+• Built-in eval datasets & scoring
+• One-line setup via env var
+ Weights & Biases
+Experiment + model registry
+• Prompt versioning UI
+• Cost / latency dashboards
+• Model registry for fine-tunes
+• Strong for hybrid ML + LLM 
+teams
+Week 5: Prototyping and Deploying Agentic Applications
+--- page 53 ---
+Part 1 Recap
+1 Chat UI in minutes: Gradio & Streamlit wrap any Python function as a streaming chat app.
+2 Conversational UX: Streaming, typing indicators, and graceful errors define perceived quality.
+3 APIs are first-class: FastAPI + Pydantic gives typed, auto-documented endpoints with streaming.
+4 Docker = reproducible: Multi-stage images keep deploys lean and portable across clouds.
+5 LLMOps is a lifecycle: Dev → test → deploy → monitor; prompt versioning is the new git for prompts.
+================================================================================
+C:\Users\Akaraan\Downloads\[SLIDES] 05b - Prototyping and Deploying Agentic Applications (Demo & Code Walkthrough) (1).pdf
+================================================================================
+--- page 1 ---
+Week 5: Prototyping and Deploying 
+Agentic Applications
+Part 2: Use Case Spotlight
+Dual-Channel Customer Support Bot (Web + API)
+--- page 2 ---
+I. Use Case Overview: 
+One Bot, Two Delivery Channels
+A. Gradio Chat Widget
+B. FastAPI Endpoint
+II. Moving from Prototype to Production
+A. Dockerization
+B. LLMOps Layer: Logging, Tracing & 
+Cost Alerts
+III. Mid-term Capstone
+IV. Key Takeaways & Homework
+Part 2: Demos & Code Walkthrough
+--- page 3 ---
+1
+/ Use Case Overview
+One Bot, Two Delivery Channels
+--- page 4 ---
+The Challenge: Dual-Channel Support Bot
+Same brain, two front doors — without doubling the code
+Channel Sprawl
+•Customers expect web chat 
+24/7
+•Partners want a programmatic 
+API
+•Internal Slack bot is also 
+requested
+•Single codebase must serve all 
+three
+Operational Visibility
+•Who used which channel & 
+when?
+•What did each call cost in 
+tokens?
+•Which queries failed or got 
+blocked?
+•How fast is the slowest 5% of 
+calls?
+Ship-able Reliability
+•No crash on bad input or 
+upload
+•Restart automatically on failure
+•Reproducible deploy to any 
+host
+•Roll back in minutes if release 
+regresses
+--- page 5 ---
+Architecture Overview
+Shared RAG core; Gradio and FastAPI both import the same Python module
+User Gradio
+UI :7860
+FastAPI
+:8000 Basic RAG LLM
+LLMOps Layer (cross-cutting)
+Structured logs Latency & token metrics MLFlow traces
+Packaged as one Docker image — both servers launch from the same container via supervisord.
+Deploy targets: Railway · Render · Fly.io · Google Cloud Run — free tiers handle the capstone.
+--- page 6 ---
+1. A. Gradio Chat Widget
+import os
+import json
+import urllib.request
+import gradio as gr
+examples = [
+    "Where is my order #4521?",
+    "How do I reset my password?",
+    "What is your return policy?",
+    "Tell me about shipping options",
+]
+with gr.Blocks(title="Acme Support Bot") as demo:
+    gr.ChatInterface(
+        fn=chat, 
+        examples=examples,
+        description="Ask me!",
+    ) 
+if __name__ == "__main__":
+    demo.launch(server_name="0.0.0.0", server_port=7860)
+frontend.py We run the python file and open localhost:7680
+--- page 7 ---
+1. A. Gradio Chat Widget
+BACKEND_URL = os.environ.get("BACKEND_URL", 
+"http://localhost:8000")
+def chat(message: str, history: list) -> str:
+    data = json.dumps({"message": message}).encode()
+    req = urllib.request.Request(
+        f"{BACKEND_URL}/chat",
+        data=data, 
+        headers={"Content-Type": "application/json"},
+    ) 
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        body = json.loads(resp.read())
+        return body["answer"]
+with gr.Blocks(title="Acme Support 
+Bot") as demo:
+    gr.ChatInterface(
+        fn=chat,
+        examples=examples,
+        description="Ask me!",
+    ) 
+The chat function is 
+passed  here inside the 
+gradio implementation.
+We run the python file and open localhost:7680frontend.py
+Sends the request 
+to our backend.
+--- page 8 ---
+1. B.  FastAPI Endpoint
+app.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+app = FastAPI()
+QA: dict[str, str] = {} # Define default answers here
+NO_ANSWER = "Sorry, I don't have an answer for that question."
+class ChatRequest(BaseModel):
+    message: str 
+class ChatResponse(BaseModel):
+    answer: str  
+@app.get("/health")
+def health():
+    return {"status": "ok"} 
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest):
+    answer = QA.get(req.message, NO_ANSWER)
+    return ChatResponse(answer=answer)
+uvicorn  app:app --host 0.0.0.0 
+--port 8000
+We can then run the following and port it 
+to localhost:8000
+curl -N -X POST 
+http://localhost:8000/chat -H 
+"Content-Type: 
+application/json" -d 
+'{"message": "Hello"}'
+While running, we can request using curl.
+{"answer":"Hello! 👋
+ Welcome to 
+Acme Support. How can I help 
+you today?"}
+we get the response
+Function decorator 
+from fastapi to route 
+requests to this func.
+--- page 9 ---
+1. B.  FastAPI Endpoint
+app.py
+def chat(req: ChatRequest):
+    
+# insert LLM Call
+# insert Prompt Engineering
+# insert RAG
+# insert Memory
+# insert Guardrails
+    return ChatResponse(answer=answer)
+Then you can insert other techniques when the 
+user sends a chat message to the backend.
+--- page 10 ---
+1.A. + 1.B. – Local Run
+python3 frontend.py
+uvicorn  app:app --host 0.0.0.0 
+--port 8000
+Run the frontend
+Run the backend
+We can run both at the same time 
+and visit the frontend site at 
+localhost:7860.
+--- page 11 ---
+python3 frontend.py
+uvicorn  app:app --host 0.0.0.0 
+--port 8000
+Run the frontend
+Run the backend
+We can’t always run the following 
+and always expect a smooth run. ● Wrong python version?
+● No uvicorn installed?
+● Missing ports?
+● OS compatibility?
+● Hardware limitations?
+--- page 12 ---
+2
+/ Moving from Prototype to 
+Production
+Dockerization & LLMOps 
+--- page 13 ---
+Shipping Your Application
+
+A platform used to build, test and deploy 
+applications quickly in a loosely isolated 
+environment.
+
+Isolation lets you run multiple instances 
+simultaneously on a given host.
+
+Package applications with all dependencies into 
+a standardized unit known as “containers”.
+
+--- page 14 ---
+Dockerizing the Whole Stack
+Dockerfile (./backend)
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install 
+--no-cache-dir -r 
+requirements.txt
+COPY app.py .
+EXPOSE 8000
+CMD ["uvicorn", "app:app", 
+"--host", "0.0.0.0", 
+"--port", "8000"]
+docker-compose.yml
+services:
+  backend:
+    build: ./backend
+    container_name: support-bot-backend
+    ports: 
+      - "8000:8000"
+  frontend:
+    build: ./frontend
+    container_name: support-bot-frontend     
+    environment:
+      - BACKEND_URL=http://backend:8000
+    ports: 
+      - "7860:7860"
+    depends_on:
+      - backend 
+Dockerfile (./frontend)
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install 
+--no-cache-dir -r 
+requirements.txt
+COPY frontend.py .
+EXPOSE 7860
+CMD ["python", 
+"frontend.py"]
+File Structure:
+● docker-compose.yml
+● frontend/
+○ Dockerfile
+● backend/
+○ DockerFile
+2.A. Dockerization
+--- page 15 ---
+2.A. Dockerization
+
+--- page 16 ---
+With docker, 
+deployment becomes 
+easier to do because we 
+are sure it will work on 
+most machines!
+--- page 17 ---
+ Application Development
+ Product Deployment
+ Live Monitoring
+Application Checklist
+--- page 18 ---
+2.B. LLMOps - MLFlow
+import mlflow
+# Configure MLflow tracking
+mlflow.set_tracking_uri("sqlite:///mlflow_traces.db") # saves to a file
+# when we have a MLFlow backend running 
+# mlflow.set_tracking_uri("http://127.0.0.1:5000")
+mlflow.set_experiment("experiment-name")
+with mlflow.start_span(name="layer1", span_type="CHAIN") as chain:
+chain.set_attribute(“key0”, “value0”)
+chain.set_attribute(“key1”, “value0”)
+with mlflow.start_span(name=”layer2”, span_type=”TOOL”) as tool1:
+tool.set_attribute(“key2”, “value2”)
+tool.set_attribute(“key3”, “value3”)
+tool.set_attribute(“key4”, “value5”)
+with mlflow.start_span(name=”layer3”, span_type=”TOOL”) as tool2:
+tool2.set_attribute(“key5”, “value5”)
+tool2.set_attribute(“key6”, “value6”)
+tool2.set_attribute(“key7”, “value7”)
+chain.set_attribute(“key8”, “value8”)
+chain.set_attribute(“key9”, “value9”)
+There are many platforms to trace 
+applications. One  of them is MLFlow.
+Run mlflow ui --backend-store-uri 
+sqlite:///mlflow_traces.db
+--- page 19 ---
+
+LLM
+USER RAG
+
+Frontend
+Backend
+Let’s add a RAG implementation to our app.
+--- page 20 ---
+2.B. LLMOps - MLFlow
+Consider the following chat sequence. We 
+get a user query, use RAG to find relevant 
+documents, then send it to the LLM.
+This sequence is reflected in MLFlow 
+when configured properly.
+with mlflow.start_span(name="chat_request", span_type="CHAIN") as span:
+  with mlflow.start_span(name="rag_retrieval", span_type="RETRIEVER") as rag_span:
+with mlflow.start_span(name="llm_inference", span_type="LLM") as llm_span:
+In Python:
+--- page 21 ---
+2.B. LLMOps - MLFlow
+
+--- page 22 ---
+3
+/ Mid-term Capstone
+Project Brief, Tracks and Scoping
+--- page 23 ---
+Capstone Project Overview
+Project Requirements
+• Working end-to-end agentic AI application
+• Demonstrates modules from Weeks 1 to 7
+• Showcase 2 modules per member
+  (e.g. 6+ modules for 3-person team)
+• Accessible via web UI and API endpoint
+• Deployed with basic LLMOps monitoring
+• Live demo – slides w/ business use case 
+• Technical write-up (≥2,000 words)
+• Code repo with README and Dockerfile
+• Teams of 3–4 students; self-formed by Week 
+6
+Module Checklist
+(at least 2 per member!)
+● Prompt Engineering
+● Structured Outputs
+● Disambiguation
+● RAG
+● Memory
+● Guardrails
+● ReAct Agent
+● SQL Agent
+● Tool Use
+● Chat UI
+● API Endpoint
+● LLMOps Monitoring
+● Dockerization
+--- page 24 ---
+Capstone Project Overview
+Use case tracks leading into the Final Capstone
+Track Options
+Computer Vision Track
+    • Object detection / OCR pipelines
+    • Multimodal agents (image + text)
+    • Document understanding (forms, 
+receipts)
+ 
+Data Science Track
+    • RAG-driven NLP pipelines
+    • Analytics & report automation
+    • Tool-using research agents
+You can build on top 
+of the mid-term for 
+the ﬁnal capstone
+(But it’s not required)
+--- page 25 ---
+What Makes a Good Agentic Problem?
+Pick projects where agents earn their complexity
+● Multi-step reasoning over external tools
+● Processes unstructured data (PDFs, 
+images, audio)
+● Needs memory across a conversation
+● Real users with measurable success 
+criteria
+● Workflow currently done manually & 
+repeatedly
+
+● Single-call Q&A — a prompt would suffice
+● Pure CRUD apps wearing an LLM costume
+● Tasks where deterministic code already 
+wins
+● Problems with no source of ground truth
+● Anything safety-critical without 
+human-in-loop
+Poor fits Good fits
+--- page 26 ---
+Key Takeaways
+What this dual-channel build teaches about LLM productionization
+Separate channels, shared core
+UI and API are thin wrappers over a single 
+Python module. Refactor the core once; both 
+channels improve together. Never duplicate 
+prompt or RAG logic per channel.
+Instrument from day one
+Add structured logs and tracing before 
+users arrive. Retrofitting observability into 
+a running production system is 10× harder 
+than instrumenting it at build time.
+Docker is the contract
+If it runs in your container, it runs on 
+Render, Fly, Cloud Run, or a partner's VM. 
+Pin Python, pin deps, expose ports — the 
+rest is infrastructure detail.
+Cost is a latency in disguise
+Token usage and dollars per call are 
+leading indicators of UX. A bloated prompt 
+is slow AND expensive — monitoring 
+catches both with the same dashboard.
+Week 5: Use Case Spotlight — Dual-Channel Support Bot
+--- page 27 ---
+Homework: Week 5
+Ship the Week 3–4 system as two channels with full LLMOps logging
+Week 5: Use Case Spotlight — Dual-Channel Support Bot
+1 Streamlit Chat App
+Wrap your Week 3–4 RAG + Memory + Guardrails system in st.chat_message + st.chat_input primitives
+ with streaming responses, message history, and PDF file upload.
+2 FastAPI Endpoint
+Expose POST /chat/stream that streams SSE from the same pipeline.
+3 Structured LLMOps Logging
+Log one JSON line per request with: latency_ms, prompt_tokens, completion_tokens, total_tokens, model, and 
+estimated cost_usd. Use a callback or middleware in MLFlow
+4 Dockerize & Deploy
+Write a multi-stage Dockerfile that builds < 500MB and runs both servers. Bonus: deploy to Railway / Render / Cloud 
+Run free tier and submit the public URL.
+--- page 28 ---
+Week 5: Prototyping and Deploying 
+Agentic Applications
+Part 3: Hackathon Time!
+
+--- page 29 ---
+GOAL
+Create a chatbot that retrieves context by querying SQL databases. 
+Design an LLM pipeline that takes in natural language from the user and converts it to an SQL query 
+to execute on a given database. 
+Hackathon Challenge: Implementing SQL-based RAG
+
+
+
+
+Simple SQL 
+Construction 
+SQL Knowledge 
+Base
+Use the LLM to create 
+the appropriate SQL 
+statement for the 
+user’s query
+Valid SQL 
+Execution
+Execute the 
+LLM-generated SQL 
+statement to retrieve 
+context for generating 
+a response.
+Handle errors 
+appropriately.
+Advanced   
+SQL Queries
+Move on to more 
+complex queries like 
+nested queries 
+satisfying multiple 
+constraints.
+
+Pick a use case and 
+design a schema w/ 
+2-3 tables
+(e.g. restaurant 
+bookings, 
+e-commerce orders, 
+retail inventory)
+Customer:
+  (name, email)
+RestaurantBooking:
+  (customer, date,  
+   num_guests)
+SELECT * FROM 
+RestaurantBookings [RestaurantBooking(
+ Alice, 06-11, 2),
+ RestaurantBooking(
+ Bob, 06-18, 4),
+]
+SELECT … WHERE
+date >= 06-11 AND
+customer = ‘Alice’
+--- page 30 ---
+Hackathon Challenge: Implementing SQL-based RAG
+
+SAMPLE CONVERSATION FLOW
+Give me the bookings of Alice from 
+June 11 onwards
+AI Agent
+Found it. Alice made a 
+reservation for 2 people on 
+June 11
+
+Internal Processing
+ SELECT … WHERE
+date >= 06-11 AND
+customer = ‘Alice’
+[RestaurantBooking(
+    Alice, 06-11, 2)]
+“Generate a response with the 
+retrieved context:
+Customer: Alice
+Date: 06-11
+Guests: 2”
+
+--- page 31 ---
+Capstone Use Case Selection
+Week 5: Chat UI · API Deployment · LLMOps · Capstone
+Sign up here
+Nominate a point person for the group
+

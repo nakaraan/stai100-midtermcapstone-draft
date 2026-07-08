@@ -156,6 +156,14 @@ terminal.
 So: **4 terminals** for local development (Option A), or **3 terminals** if
 you run the app via Docker (Option B) — 2 either way for MLflow/Ollama.
 
+**Shortcut:** [`scripts/`](scripts/) has one script per terminal above
+(`run-mlflow`, `run-ollama`, `run-api`, `run-ui`, both `.ps1` and `.sh`
+variants) plus `run-all.ps1`, which opens all four in their own PowerShell
+windows for you — `powershell -File scripts\run-all.ps1` from the repo root
+after [one-time setup](#one-time-setup). This whole stack (venv rebuild,
+`ollama pull llama3.2:3b`, all four services, and a real end-to-end `/chat`
+request against the live NREL API) was verified working on 2026-07-08.
+
 ### Prerequisites
 
 - **Python 3.11+**
