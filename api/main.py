@@ -1,12 +1,3 @@
-"""FastAPI REST API for AGENT P — a thin HTTP wrapper around src/agent.py.
-
-Mirrors the shape of sample_app.py (CORS middleware, a Pydantic request body, a
-`/health` endpoint, one chat endpoint) but returns a single structured JSON
-response instead of a server-sent stream, since src/agent.py's ReAct loop makes
-several LLM round-trips internally and only has one final answer to hand back
-per turn — there's no token stream to forward.
-"""
-
 from __future__ import annotations
 
 from typing import Optional
@@ -34,7 +25,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def validate_config_on_startup() -> None:
-    """Fail fast on a missing NREL key/email rather than on the first user request."""
+    #Fail fast on a missing NREL key/email rather than on the first user request.
     get_settings()
 
 

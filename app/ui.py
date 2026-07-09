@@ -1,11 +1,4 @@
-"""Streamlit conversational UI for AGENT P.
-
-Styled after sample_frontend.py (session-state chat history, sidebar, chat_message
-rendering), but unlike that reference this UI never imports the agent, database,
-or config modules directly — every turn is a single HTTP POST to the FastAPI
-backend in api/main.py, so the UI and the agent stay fully decoupled.
-"""
-
+#Streamlit conversational UI for AGENT P.
 import csv
 import io
 import os
