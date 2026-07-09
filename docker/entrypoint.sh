@@ -1,7 +1,5 @@
-#!/usr/bin/env bash
-# Runs the FastAPI backend and Streamlit UI as sibling processes in one
-# container. Either process exiting (crash or signal) brings the other down
-# too, so Docker sees one failure instead of a silently half-dead container.
+# Runs the backend and UI as sibling processes in one container. 
+#Either process exiting (crash or signal) brings the other down too.
 set -euo pipefail
 
 api_pid=""

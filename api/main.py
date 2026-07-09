@@ -1,12 +1,4 @@
-"""FastAPI REST API for AGENT P — a thin HTTP wrapper around src/agent.py.
-
-Mirrors the shape of sample_app.py (CORS middleware, a Pydantic request body, a
-`/health` endpoint, one chat endpoint) but returns a single structured JSON
-response instead of a server-sent stream, since src/agent.py's ReAct loop makes
-several LLM round-trips internally and only has one final answer to hand back
-per turn — there's no token stream to forward.
-"""
-
+#Utilizes Fast API to create a REST API structure.
 from __future__ import annotations
 
 from typing import Optional
@@ -18,12 +10,14 @@ from pydantic import BaseModel
 from config.settings import get_settings
 from src.agent import handle_query
 
+#Initialize FastAPI app with title, description, and version.
 app = FastAPI(
     title="AGENT P API",
     description="Predictive & Parametric Solar Analytics Assistant — NREL/NSRDB agentic backend.",
     version="0.1.0",
 )
 
+#Add CORS middleware to allow cross-origin requests from any origin, with any method and headers.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,24 +25,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# Validate configuration on startup to ensure that the necessary settings are present.
+# Will fail on missing NREL key instead of waiting for the first user request, providing a fail-fast mechanism.
 @app.on_event("startup")
 def validate_config_on_startup() -> None:
-    """Fail fast on a missing NREL key/email rather than on the first user request."""
     get_settings()
 
-
+# Chat Request class for query and session_id, with default session_id set to "api_user".
 class ChatRequest(BaseModel):
     query: str
     session_id: str = "api_user"
 
-
+# Location output class for latitude, longitude, and optional name.To locate the location inputted by the user.
 class LocationOut(BaseModel):
     latitude: float
     longitude: float
     name: Optional[str] = None
 
-
+# Chat Response class for structured response from the chat endpoint, including answer, session_id, 
+# and optional fields for clarification, location, year, months, attributes, and monthly metrics.
 class ChatResponse(BaseModel):
     answer: str
     session_id: str
@@ -60,12 +55,13 @@ class ChatResponse(BaseModel):
     attributes: Optional[list[str]] = None
     monthly_metrics: Optional[dict[int, dict[str, Optional[float]]]] = None
 
-
+# Health check endpoint to verify that the API is running and responsive.
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-
+# Chat endpoint to handle user queries. Validates the query, processes it using the handle_query function, 
+# and returns a structured response.
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     if not req.query or not req.query.strip():
@@ -92,7 +88,7 @@ def chat(req: ChatRequest) -> ChatResponse:
         monthly_metrics=result.monthly_metrics,
     )
 
-
+# Run the FastAPI app using Uvicorn when the script is executed directly.
 if __name__ == "__main__":
     import uvicorn
 

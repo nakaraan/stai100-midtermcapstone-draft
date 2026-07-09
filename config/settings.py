@@ -1,5 +1,4 @@
-"""Centralized application settings for AGENT P, loaded from environment variables / .env."""
-
+# Centralized application settings for AGENT P, from .env
 from functools import lru_cache
 
 from pydantic import Field
@@ -32,12 +31,12 @@ class Settings(BaseSettings):
     )
     nrel_request_timeout_seconds: int = Field(default=60, alias="NREL_REQUEST_TIMEOUT_SECONDS")
 
-    # --- MLflow (LLMOps monitoring) ---
+    # MLflow (LLMOps monitoring)
     mlflow_tracking_uri: str = Field(default="http://localhost:5000", alias="MLFLOW_TRACKING_URI")
     mlflow_registry_uri: str | None = Field(default=None, alias="MLFLOW_REGISTRY_URI")
     mlflow_experiment_name: str = Field(default="agent-p-solar-analytics", alias="MLFLOW_EXPERIMENT_NAME")
 
-    # --- LLM (intent parsing, disambiguation, response generation in src/agent.py) ---
+    # LLM (intent parsing, disambiguation, response generation in src/agent.py)
     # Defaults point at a local Ollama server via its OpenAI-compatible endpoint.
     llm_base_url: str = Field(default="http://localhost:11434/v1", alias="LLM_BASE_URL")
     llm_api_key: str = Field(default="ollama", alias="LLM_API_KEY")

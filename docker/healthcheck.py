@@ -1,6 +1,4 @@
-"""Docker HEALTHCHECK: the container is only healthy if both the FastAPI
-backend and the Streamlit UI are answering."""
-
+# Healthcheck to check if both the backend and UI are responsive.
 import sys
 import urllib.request
 

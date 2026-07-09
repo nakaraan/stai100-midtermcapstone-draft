@@ -1,6 +1,5 @@
-# System prompts for AGENT P (Predictive & Parametric Solar Analytics Assistant)
-# Kept separate from application code so prompt variants can be iterated on and
-# evaluated (ablated) without touching orchestration logic.
+# System prompts are kept separate from application code so prompt variants can be iterated on and
+# evaluated without touching orchestration logic.
 
 system:
   persona: |

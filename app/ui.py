@@ -11,10 +11,12 @@ import io
 import os
 import uuid
 
+# Uses streamlit to create the UI of the app.
 import requests
 import streamlit as st
 from dotenv import load_dotenv
 
+# Load environment variables from a .env file, if present, to configure the API base URL and other settings.
 load_dotenv()
 
 API_BASE_URL = os.environ.get("AGENT_P_API_URL", "http://localhost:8000")
@@ -28,7 +30,8 @@ CONNECTION_ERROR_MESSAGE = (
 
 st.set_page_config(page_title="AGENT P — Solar Analytics Assistant", page_icon="☀️")
 
-# ── Session state ────────────────────────────────────────────────────────────
+# Sets up session state variables for session_id, messages, and last_result to maintain the state of the conversation across user 
+# interactions.
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"session_{uuid.uuid4().hex[:8]}"
 if "messages" not in st.session_state:
@@ -36,7 +39,7 @@ if "messages" not in st.session_state:
 if "last_result" not in st.session_state:
     st.session_state.last_result = None
 
-
+# POST request to the backend with the user's query and session_id.
 def ask_agent(query: str) -> dict:
     """POST the query to AGENT P's FastAPI backend and return the parsed JSON body."""
     response = requests.post(
@@ -47,7 +50,7 @@ def ask_agent(query: str) -> dict:
     response.raise_for_status()
     return response.json()
 
-
+# Converts the monthly metrics dictionary into a CSV string for download.
 def _monthly_metrics_csv(monthly_metrics: dict) -> str:
     attr_names = sorted({attr for values in monthly_metrics.values() for attr in values})
     buffer = io.StringIO()
@@ -62,12 +65,13 @@ def _monthly_metrics_csv(monthly_metrics: dict) -> str:
 st.title("☀️ AGENT P")
 st.caption("Ask about solar irradiation, weather, or site feasibility for a location and date range.")
 
-# ── Render chat history ──────────────────────────────────────────────────────
+# Shows the chat history by iterating over the messages stored in the session.
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
 
-# ── Chat input ────────────────────────────────────────────────────────────────
+# Chat input for the user to enter their query. When a prompt is submitted, it is sent to the backend, 
+# and the response is displayed in the chat interface.
 prompt = st.chat_input("e.g. Monthly average irradiation from Feb to June 2022 at our Caloocan warehouse")
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -79,11 +83,9 @@ if prompt:
             try:
                 result = ask_agent(prompt)
                 answer = result.get("answer", "")
-                # Only refresh the sidebar when the response actually resolved a
-                # location. A guardrail rejection or a disambiguation round-trip
-                # with nothing resolved yet must not blank out the last good
-                # metrics view — `needs_clarification` alone isn't a safe signal
-                # here since a guardrail rejection also defaults it to False.
+
+                # Refreshes the sidebar with the last resolved location's metrics if the response contains a location.
+                # Utilizes the guardrail rejection or disambiguation round-trip to ensure that the last good metrics view is not blanked out.
                 if result.get("location"):
                     st.session_state.last_result = result
             except requests.exceptions.RequestException:
@@ -92,11 +94,8 @@ if prompt:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
-# ── Sidebar — retrieved solar metrics from the last resolved query ──────────
-# Rendered last (not near the top) because Streamlit reruns this whole script
-# top-to-bottom on every interaction: session_state.last_result is only updated
-# by the chat-input handling above, so the sidebar must read it *after* that
-# block runs in order to show the metrics from the turn that just completed.
+# Sidebar displays the last resolved location's solar metrics, including site information, year, months, attributes, and monthly averages. 
+# It also provides a download button for the monthly summary in CSV format.
 with st.sidebar:
     st.header("Solar Metrics")
     st.caption(f"Session ID: `{st.session_state.session_id}`")
