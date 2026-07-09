@@ -20,15 +20,15 @@ for the full business case.
 - [Repository structure](#repository-structure)
 - [Module checklist coverage](#module-checklist-coverage)
 - [Running the project](#running-the-project)
-  - [Cheat sheet](#cheat-sheet)
   - [Prerequisites](#prerequisites)
   - [One-time setup](#one-time-setup)
-  - [Supporting services (both options need these)](#supporting-services-both-options-need-these)
-  - [Option A — run locally with Python](#option-a--run-locally-with-python)
-  - [Option B — run with Docker](#option-b--run-with-docker)
-  - [Verify everything is running](#verify-everything-is-running)
-  - [Environment variables](#environment-variables)
+  - [Start it (4 terminals)](#start-it-4-terminals)
+  - [Verify it's working](#verify-its-working)
+  - [Switching the LLM model](#switching-the-llm-model)
+  - [Deploy it publicly (optional)](#deploy-it-publicly-optional)
+  - [Docker (optional alternative)](#docker-optional-alternative)
   - [Troubleshooting](#troubleshooting)
+- [Environment variables](#environment-variables)
 - [Using the app](#using-the-app)
 - [Module ownership](#module-ownership)
 - [Known limitations](#known-limitations)
@@ -132,59 +132,28 @@ flowchart TD
 
 ## Running the project
 
-There are **up to four moving pieces**, and each one is a long-running
-process that needs to keep its own terminal window open: an MLflow tracking
-server, an LLM endpoint (Ollama, unless you're using a hosted provider), and
-the app itself (FastAPI + Streamlit — either as two local Python processes,
-or as one Docker container). Nothing below needs to be run as Administrator/root.
-
-### Cheat sheet
-
-Once setup is done, this is everything at a glance. Full context for each row
-is in the sections below — **don't copy-paste from this table alone the
-first time**, since it skips the `cd`/activate steps you need in every new
-terminal.
-
-| Terminal | Runs | Port | Command |
-| --- | --- | --- | --- |
-| 1 | MLflow tracking server | 5000 | `mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///.mlflow/mlflow.db` |
-| 2 | LLM endpoint (skip if Ollama's already running) | 11434 | `ollama serve` |
-| 3 *(Option A)* | FastAPI backend | 8000 | `python -m uvicorn api.main:app --reload --port 8000` |
-| 4 *(Option A)* | Streamlit UI | 8501 | `python -m streamlit run app/ui.py` |
-| 3 *(Option B, instead of A)* | Docker container (API + UI together) | 8000, 8501 | `docker run --rm -p 8000:8000 -p 8501:8501 --env-file .env agent-p` |
-
-So: **4 terminals** for local development (Option A), or **3 terminals** if
-you run the app via Docker (Option B) — 2 either way for MLflow/Ollama.
-
-**Shortcut:** [`scripts/`](scripts/) has one script per terminal above
-(`run-mlflow`, `run-ollama`, `run-api`, `run-ui`, both `.ps1` and `.sh`
-variants) plus `run-all.ps1`, which opens all four in their own PowerShell
-windows for you — `powershell -File scripts\run-all.ps1` from the repo root
-after [one-time setup](#one-time-setup). This whole stack (venv rebuild,
-`ollama pull llama3.2:3b`, all four services, and a real end-to-end `/chat`
-request against the live NREL API) was verified working on 2026-07-08.
+**Everything below is plain commands, run by hand — no scripts, no wrapper
+tooling required.** Four terminal windows, each running one piece, is the
+whole setup. Every terminal window is independent: if you close one, only
+that one piece goes down.
 
 ### Prerequisites
 
 - **Python 3.11+**
 - **Git**
-- **Docker Desktop** (or Docker Engine) — only if you're using Option B
-- A free **NREL API key** — sign-up link is in [`.env.example`](.env.example)
-- An **OpenAI-API-compatible LLM endpoint**. Either:
-  - **Local (recommended for development):** [Ollama](https://ollama.com)
-  - **Hosted:** any OpenAI-compatible provider — set `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` in `.env` accordingly
-- **MLflow** — the app only ships the lightweight `mlflow-skinny` *client* in
-  `requirements.txt` (it logs traces to whatever server you point it at). To
-  actually run a tracking server locally you need the full `mlflow` package
-  too (installed in [One-time setup](#one-time-setup) below).
+- A free **NREL API key** — sign up at the URL in [`.env.example`](.env.example)
+- **[Ollama](https://ollama.com)** installed (recommended, runs the LLM locally for free) — or any OpenAI-compatible hosted provider instead
+- **MLflow** — `requirements.txt` only installs the lightweight `mlflow-skinny`
+  *client*; running your own tracking server needs the full `mlflow` package
+  too (installed below)
 
 ### One-time setup
 
-> This repo currently has a `.venv/` folder from a previous machine committed
-> alongside the source. **Don't try to activate that one** — a virtualenv
-> embeds absolute paths from the machine it was created on, so it will not
-> work on yours. Create your own with the steps below; it's a normal, harmless
-> step even though a `.venv/` folder already exists.
+> A `.venv/` folder may already exist in this repo from a previous machine.
+> **Don't try to use it** — a virtualenv embeds absolute paths from the
+> machine it was created on. The commands below safely overwrite it with one
+> that works on your machine; this is normal, do it even if `.venv/` is
+> already there.
 
 **Windows (PowerShell):**
 
@@ -194,8 +163,8 @@ cd stai100-midtermcapstone-draft
 
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-# If PowerShell refuses to run the script ("running scripts is disabled on
-# this system"), run this once first, then retry the line above:
+# If PowerShell refuses ("running scripts is disabled on this system"),
+# run this once, then retry the line above:
 #   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 pip install -r requirements.txt
@@ -203,7 +172,10 @@ pip install mlflow
 
 Copy-Item .env.example .env
 notepad .env
-# fill in NREL_API_KEY, NREL_API_EMAIL, and anything else you're overriding, then save+close
+# Fill in NREL_API_KEY and NREL_API_EMAIL, then save and close.
+
+ollama pull qwen2.5:7b
+ollama pull llama3.2:3b
 ```
 
 **macOS/Linux (bash/zsh):**
@@ -220,163 +192,95 @@ pip install mlflow
 
 cp .env.example .env
 nano .env
-# fill in NREL_API_KEY, NREL_API_EMAIL, and anything else you're overriding, then save (Ctrl+O, Ctrl+X)
-```
+# Fill in NREL_API_KEY and NREL_API_EMAIL, then save (Ctrl+O, Ctrl+X).
 
-**If you're using Ollama**, also pull a model (same command, either OS —
-run it in any terminal, doesn't need to be one of the 4 above):
-
-```
+ollama pull qwen2.5:7b
 ollama pull llama3.2:3b
 ```
 
-`llama3.2:3b` is the configured default (see `.env.example`), but the team's
-own testing (see the comment above `MAX_REACT_TURNS` in
-[`src/agent.py`](src/agent.py)) found **`qwen2.5:7b` follows the agent's
-Thought/Action format more reliably**. If you have the RAM for a 7B model,
-it's worth pulling instead and setting `LLM_MODEL=qwen2.5:7b` in `.env`:
+Both models are pulled so you can compare them, but you only need to run one
+at a time — see [Switching the LLM model](#switching-the-llm-model) for which
+to pick.
 
-```
-ollama pull qwen2.5:7b
-```
+### Start it (4 terminals)
 
-### Supporting services (both options need these)
+Every terminal below is a **new shell window**: `cd` into the repo and
+re-activate the venv in each one — activation only applies to the window you
+ran it in. Start them **in this exact order**: MLflow has to be up before
+anything else touches it, or the API/UI will hang retrying against a closed
+port for a long time before failing.
 
-Every terminal below is a **new shell window** — activate the venv again in
-each one (activation only applies to the shell session you ran it in), and
-make sure you're in the repo root (`config/settings.py` loads `.env` relative
-to your current directory, not the repo location, so running from the wrong
-folder silently skips your `.env`).
+**Terminal 1 — MLflow (start first, always)**
 
-**Terminal 1 — MLflow tracking server**
-
-PowerShell:
 ```powershell
 cd stai100-midtermcapstone-draft
 .venv\Scripts\Activate.ps1
 mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///.mlflow/mlflow.db
 ```
-
-bash/zsh:
 ```bash
 cd stai100-midtermcapstone-draft
 source .venv/bin/activate
 mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///.mlflow/mlflow.db
 ```
 
-> **Only if you'll use Option B (Docker) below**, add `--allowed-hosts` to
-> that command, because the container reaches this server as
-> `host.docker.internal`, and recent MLflow versions reject unrecognized
-> `Host` headers by default:
-> ```
-> mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///.mlflow/mlflow.db --allowed-hosts "localhost,127.0.0.1,host.docker.internal:*"
-> ```
-> (The `:*` matters — the check matches the full `host:port` string — and
-> setting `--allowed-hosts` at all replaces the defaults rather than
-> extending them, so `localhost`/`127.0.0.1` are re-listed too.)
-
 Leave this running. MLflow's UI is at <http://localhost:5000>.
 
-**Terminal 2 — LLM endpoint**
+**Terminal 2 — Ollama**
 
-Skip this terminal entirely if you're using a hosted LLM provider, or if
-Ollama is already running as a background service (the Windows/Mac
-installers set this up by default — check first with `ollama list` in any
-terminal; if it prints a model list instead of a connection error, it's
-already running and starting it again will just fail on the port).
+Skip this terminal if Ollama is already running in the background (the
+Windows/Mac installers usually set this up automatically) — check first with
+`ollama list` in any terminal; if it prints your two models instead of a
+connection error, it's already running and this terminal isn't needed.
 
-PowerShell or bash/zsh (same command):
 ```
 ollama serve
 ```
 
-### Option A — run locally with Python
-
-Best for active development (`--reload` picks up code changes automatically).
-Continues the numbering above — 2 more terminals, 4 total.
-
 **Terminal 3 — FastAPI backend**
 
-PowerShell:
 ```powershell
 cd stai100-midtermcapstone-draft
 .venv\Scripts\Activate.ps1
-python -m uvicorn api.main:app --reload --port 8000
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
-
-bash/zsh:
 ```bash
 cd stai100-midtermcapstone-draft
 source .venv/bin/activate
-python -m uvicorn api.main:app --reload --port 8000
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
 If this crashes immediately with a Pydantic `ValidationError` mentioning
-`nrel_api_key` or `nrel_api_email`, your `.env` is missing, incomplete, or
-you're not running the command from the repo root.
+`nrel_api_key`/`nrel_api_email`, your `.env` is missing/incomplete, or you're
+not running the command from the repo root.
 
 **Terminal 4 — Streamlit UI**
 
-PowerShell:
 ```powershell
 cd stai100-midtermcapstone-draft
 .venv\Scripts\Activate.ps1
 python -m streamlit run app/ui.py
 ```
-
-bash/zsh:
 ```bash
 cd stai100-midtermcapstone-draft
 source .venv/bin/activate
 python -m streamlit run app/ui.py
 ```
 
-Streamlit should open <http://localhost:8501> in your browser automatically;
-if not, open it manually.
+Streamlit opens <http://localhost:8501> automatically; if not, open it by hand.
 
-### Option B — run with Docker
-
-Closest to how the grader will run it — packages the API and UI into one
-container (`docker/entrypoint.sh` runs both as sibling processes; either one
-exiting stops the container). MLflow and Ollama are **not** containerized
-here, so Terminals 1 and 2 above still apply — this replaces only Terminals
-3 and 4 with a single terminal.
-
-Before building, point `.env` at your host machine instead of `localhost`,
-since `localhost` inside the container refers to the container itself:
-
-```
-MLFLOW_TRACKING_URI=http://host.docker.internal:5000
-LLM_BASE_URL=http://host.docker.internal:11434/v1
-```
-
-**Terminal 3 — build and run the container**
-
-Same command on PowerShell or bash/zsh:
-```
-docker build -t agent-p .
-docker run --rm -p 8000:8000 -p 8501:8501 --env-file .env agent-p
-```
-
-Open <http://localhost:8501> (UI) — the API is at <http://localhost:8000>.
-To stop it, `Ctrl+C` in this terminal (the container was started with
-`--rm`, so it's removed automatically on exit).
-
-### Verify everything is running
-
-Run these after Terminals 1–2 and either Option A or B are up.
+### Verify it's working
 
 1. **MLflow** — open <http://localhost:5000> in a browser, or:
-   - PowerShell: `Invoke-RestMethod -Uri http://localhost:5000/health`
-   - bash/zsh: `curl -s http://localhost:5000/health`
+   - PowerShell: `curl.exe -s http://localhost:5000`
+   - bash/zsh: `curl -s http://localhost:5000`
 2. **API health** —
-   - PowerShell: `Invoke-RestMethod -Uri http://localhost:8000/health`
+   - PowerShell: `curl.exe -s http://localhost:8000/health`
    - bash/zsh: `curl -s http://localhost:8000/health`
    - Expect: `{"status":"ok"}`
 3. **Full round trip** (agent + NREL + LLM + MLflow tracing, all at once) —
    - PowerShell:
      ```powershell
-     Invoke-RestMethod -Uri "http://localhost:8000/chat" -Method Post -ContentType "application/json" -Body '{"query": "Give me the monthly average irradiation from Feb to June in 2019 at our warehouse location in Caloocan.", "session_id": "smoke-test"}'
+     curl.exe -s -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"query\": \"Give me the monthly average irradiation from Feb to June in 2019 at our warehouse location in Caloocan.\", \"session_id\": \"smoke-test\"}"
      ```
    - bash/zsh:
      ```bash
@@ -388,7 +292,123 @@ Run these after Terminals 1–2 and either Option A or B are up.
 4. **UI** — open <http://localhost:8501>, ask the same question, confirm the sidebar fills in with a site, year, and monthly table plus a CSV download button.
 5. **Tracing** — refresh the MLflow UI, open the `agent-p-solar-analytics` experiment, and confirm a new trace appeared for the request in step 3.
 
-### Environment variables
+> **PowerShell note:** its built-in `curl` is an alias for `Invoke-WebRequest`,
+> a different tool with different behavior — always type `curl.exe` (with the
+> extension) to get the real curl shown above, especially for the POST in
+> step 3.
+
+### Switching the LLM model
+
+`qwen2.5:7b` is the **recommended** model — tested head-to-head against
+`llama3.2:3b` on the same machine and same query, 5/5 successful runs vs.
+llama's 40-60% (llama would occasionally ask an unnecessary clarifying
+question, resolve the wrong coordinates, or state numbers in its answer that
+didn't match the real computed data). Use `llama3.2:3b` instead only if your
+machine can't spare the RAM for a 7B model — it's smaller and faster to pull.
+
+To switch:
+
+1. Edit `.env` and change the `LLM_MODEL` line to `qwen2.5:7b` or `llama3.2:3b`.
+2. **Restart Terminal 3** (`Ctrl+C`, then re-run the `uvicorn` command). Editing
+   `.env` alone does nothing — settings are loaded once per process and
+   cached, so the API keeps using whichever model was configured when it
+   started until it's restarted.
+
+### Deploy it publicly (optional)
+
+To let someone outside your machine/network reach the app (e.g. for a
+demo), expose it with a **Cloudflare quick tunnel** — free, no Cloudflare
+account needed. This is in addition to the 4 terminals above; both must
+already be running.
+
+**Install cloudflared** (once per machine):
+- Windows: `winget install --id Cloudflare.cloudflared`
+- macOS: `brew install cloudflared`
+- Linux: download from <https://github.com/cloudflare/cloudflared/releases>
+
+> Just installed it via winget and `cloudflared` still says "not recognized"?
+> PATH was updated for new terminals, not the one you installed it from — open
+> a fresh terminal and it'll be found.
+
+**Terminal 5 — tunnel the UI**
+
+```
+cloudflared tunnel --url http://localhost:8501
+```
+
+**Terminal 6 — tunnel the API**
+
+```
+cloudflared tunnel --url http://localhost:8000
+```
+
+Each prints a block containing a URL like
+`https://random-two-words.trycloudflare.com` after a few seconds — that's
+the public address. Share the Terminal 5 URL for the web UI; the Terminal 6
+URL is the raw REST API (same `/chat`, `/health` routes as
+[above](#verify-its-working), just publicly reachable). The UI itself keeps
+talking to the API over `localhost` internally, so no `.env` changes are
+needed to deploy — only the browser-facing hop goes through Cloudflare.
+
+Things to know before relying on this:
+- **No login, no auth, no uptime guarantee.** Anyone with the URL can use the
+  app — including spending your real NREL API key's quota. Stop both
+  `cloudflared` terminals (`Ctrl+C`) once you're done.
+- **URLs are temporary** — a new one is assigned every time you run the
+  command, and they stop working the moment `cloudflared` exits.
+- **Cloudflare's free tier has a hard ~100 second timeout** on any single
+  request (a 524 error past that, not fixable without a paid Enterprise
+  plan). `qwen2.5:7b` typically answers in 25-60 seconds, well inside that —
+  worth knowing if a query ever runs long.
+
+### Docker (optional alternative)
+
+Packages the API and UI into one container instead of Terminals 3 and 4
+(`docker/entrypoint.sh` runs both as sibling processes). Terminals 1 and 2
+(MLflow, Ollama) still run on your host — they aren't containerized.
+
+Point `.env` at your host machine instead of `localhost` first, since
+`localhost` inside the container means the container itself:
+
+```
+MLFLOW_TRACKING_URI=http://host.docker.internal:5000
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+```
+
+Then, if you also want MLflow to accept connections coming from the
+container, start Terminal 1 with `--allowed-hosts` added:
+
+```
+mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///.mlflow/mlflow.db --allowed-hosts "localhost,127.0.0.1,host.docker.internal:*"
+```
+
+Build and run:
+
+```
+docker build -t agent-p .
+docker run --rm -p 8000:8000 -p 8501:8501 --env-file .env agent-p
+```
+
+Open <http://localhost:8501> (UI) — the API is at <http://localhost:8000>.
+`Ctrl+C` stops and removes the container (it was started with `--rm`).
+
+### Troubleshooting
+
+| Symptom | Likely cause / fix |
+| --- | --- |
+| `/chat` hangs for 90+ seconds with no response | **Check MLflow (Terminal 1) is actually running first**, before suspecting the LLM or networking — every traced call blocks retrying against it if it's down. |
+| PowerShell: "`...Activate.ps1 cannot be loaded because running scripts is disabled on this system`" | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` once in that terminal, then retry activation. |
+| "`uvicorn`/`streamlit`/`mlflow` is not recognized" | The venv isn't activated in *this* terminal — activation is per-window, redo it here even if you already did it elsewhere. |
+| FastAPI crashes on startup with a Pydantic `ValidationError` | `.env` is missing/incomplete, or you ran the command from the wrong folder — `.env` is resolved relative to your current directory, not the repo path. |
+| Agent keeps asking a clarifying question no matter what you answer | Check the requested **year is 2016–2020** — that's the only range the configured NSRDB endpoint covers (see [Known limitations](#known-limitations)); anything outside it gets silently nulled out and re-asked. |
+| Changed `LLM_MODEL` in `.env` but nothing changed | You have to **restart Terminal 3** — see [Switching the LLM model](#switching-the-llm-model). |
+| `ollama serve` fails because the port's in use | Ollama's probably already running as a background service — skip that terminal and confirm with `ollama list`. |
+| Docker container can't reach MLflow/Ollama, or traces never appear | `.env` still says `localhost` — from inside the container that's the container itself. Use `host.docker.internal` (see [Docker](#docker-optional-alternative)). |
+| `cloudflared` PATH not found right after installing | Open a new terminal — PATH updates don't reach terminals already open when you installed it. |
+
+---
+
+## Environment variables
 
 | Variable | Default | Used by |
 | --- | --- | --- |
@@ -398,7 +418,7 @@ Run these after Terminals 1–2 and either Option A or B are up.
 | `NREL_REQUEST_TIMEOUT_SECONDS` | `60` | `src/database.py` |
 | `LLM_BASE_URL` | `http://localhost:11434/v1` | `src/agent.py` |
 | `LLM_API_KEY` | `ollama` | `src/agent.py` |
-| `LLM_MODEL` | `llama3.2:3b` | `src/agent.py` |
+| `LLM_MODEL` | `llama3.2:3b` (recommend switching to `qwen2.5:7b` — see [above](#switching-the-llm-model)) | `src/agent.py` |
 | `MLFLOW_TRACKING_URI` | `http://localhost:5000` | `utils/telemetry.py` |
 | `MLFLOW_REGISTRY_URI` | _(unset)_ | `utils/telemetry.py` |
 | `MLFLOW_EXPERIMENT_NAME` | `agent-p-solar-analytics` | `utils/telemetry.py` |
@@ -407,18 +427,6 @@ Run these after Terminals 1–2 and either Option A or B are up.
 Full definitions live in [`config/settings.py`](config/settings.py); exact
 current values (including the NREL sign-up URL) are in
 [`.env.example`](.env.example).
-
-### Troubleshooting
-
-| Symptom | Likely cause / fix |
-| --- | --- |
-| PowerShell: "`...Activate.ps1 cannot be loaded because running scripts is disabled on this system`" | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` once in that terminal, then retry activation. |
-| "`uvicorn`/`streamlit`/`mlflow` is not recognized" | The venv isn't activated in *this* terminal — activation is per-window, redo it here even if you already did it elsewhere. |
-| FastAPI crashes on startup with a Pydantic `ValidationError` | `.env` is missing/incomplete, or you ran the command from the wrong folder — `.env` is resolved relative to your current directory, not the repo path. |
-| Agent keeps asking a clarifying question no matter what you answer | Check the requested **year is 2016–2020** — that's the only range the configured Himawari NSRDB endpoint covers (see [Known limitations](#known-limitations)); anything outside it gets silently nulled out and re-asked. |
-| Docker container can't reach MLflow / Ollama, or traces never appear | `.env` still says `localhost` — from inside the container that means the container itself, not your host. Use `host.docker.internal` (see [Option B](#option-b--run-with-docker)), and make sure MLflow was started with `--allowed-hosts` including it. |
-| Streamlit shows "I couldn't reach the AGENT P backend" | The FastAPI process (Terminal 3, or the Docker container) isn't running or crashed — check that terminal's output. |
-| `ollama serve` fails because the port's in use | Ollama is probably already running as a background service — skip that terminal and confirm with `ollama list`. |
 
 ---
 
@@ -490,9 +498,13 @@ grouped — adjust to match your actual team size and who built what:
   endpoint. A year outside that range is treated as unresolved and triggers
   a clarification loop rather than a clear error; the original business-case
   sample query (2022) needs its year swapped for one in range to actually run.
-- Session memory (`src/memory.py`) is in-process only — it resets on
-  container restart and doesn't survive multiple API replicas. Fine for a
-  single-container demo; would need a shared store (Redis, DB) to scale out.
+- Session memory (`src/memory.py`) is in-process only — it resets when a
+  terminal is restarted and doesn't survive multiple API replicas. Fine for a
+  single-instance demo; would need a shared store (Redis, DB) to scale out.
 - NSRDB coverage is region-specific (Himawari for Asia/Pacific, PSM3 for the
   Americas, etc.) — the default endpoint in `config/settings.py` only covers
   one region at a time.
+- Reliability depends heavily on which LLM is configured — see
+  [Switching the LLM model](#switching-the-llm-model). Even with `qwen2.5:7b`,
+  this is a 7B local model, not a frontier hosted one; don't expect
+  perfection on queries far outside the few-shot example's phrasing.
