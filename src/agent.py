@@ -27,6 +27,7 @@ from openai import OpenAI
 
 from config.settings import get_settings
 from src.database import get_irradiance_for_period
+from src.geocoding import geocode
 from src.guardrails import GuardrailViolation, sanitize_output, validate_input
 from src.memory import SessionMemory, get_session_memory
 from utils.telemetry import redact_secrets, trace_agent, trace_llm, trace_tool
@@ -373,6 +374,40 @@ def _fill_from_memory(slots: dict, memory: SessionMemory) -> dict:
     return filled
 
 
+def _resolve_location(slots: dict) -> dict:
+    """Fill latitude/longitude via real geocoding when a place is known but
+    coordinates aren't yet - the intent parser deliberately never guesses
+    them for a named place (see config/prompts.yaml), so this is the only
+    place real coordinates for a named place come from. Leaves the agent
+    almost never needing to ask the user for coordinates directly - only for
+    a place this can't resolve either (a typo, or too vague to be a real
+    place at all), which still falls through to the normal clarification path.
+
+    Prefers geocode_query (a cleaned place name/address, e.g. "Caloocan")
+    over location_name (the user's fuller phrasing, e.g. "warehouse location
+    in Caloocan") - a real geocoder matches an actual place far more
+    reliably than a sentence fragment with descriptive filler in it. Falls
+    back to location_name only if geocode_query wasn't populated at all.
+    """
+    resolved = dict(slots)
+    query = resolved.get("geocode_query") or resolved.get("location_name")
+    if not query:
+        return resolved
+    if resolved.get("latitude") is not None and resolved.get("longitude") is not None:
+        return resolved  # already resolved - explicit coordinates or remembered from memory
+
+    try:
+        hit = geocode(query)
+    except Exception:
+        hit = None
+
+    if hit:
+        resolved["latitude"] = hit["latitude"]
+        resolved["longitude"] = hit["longitude"]
+
+    return resolved
+
+
 def _missing_fields(slots: dict) -> list[str]:
     return [field for field in REQUIRED_FIELDS if slots.get(field) is None]
 
@@ -572,6 +607,7 @@ def handle_query(user_input: str, session_id: str = "default") -> AgentResponse:
     memory.remember_turn("user", clean_query)
 
     slots = _fill_from_memory(_parse_intent(clean_query), memory)
+    slots = _resolve_location(slots)
 
     missing = _missing_fields(slots)
     if missing:

@@ -18,16 +18,24 @@ intent_parser:
   system: |
     You convert a user's natural-language request into structured parameters for the
     NREL/NSRDB API. Extract exactly these fields when present in the query:
-      - latitude (float, -90 to 90)
-      - longitude (float, -180 to 180)
-      - location_name (string, as mentioned by the user, e.g. "our warehouse in Caloocan")
+      - latitude (float, -90 to 90) / longitude (float, -180 to 180) — ONLY when the user
+        states them as explicit numbers in the query itself (e.g. "at 10.3, 123.9"). Never
+        estimate or recall coordinates for a named place from your own knowledge — leave
+        both null and rely on geocode_query instead; a separate geocoding step resolves
+        real coordinates far more reliably than a guess.
+      - location_name (string, as mentioned by the user, verbatim-ish, e.g. "our warehouse
+        in Caloocan") — used to talk about the site naturally in the final answer.
+      - geocode_query (string, the actual place name/address a map lookup would need —
+        strip descriptive filler location_name may have. E.g. "our warehouse in Caloocan"
+        -> "Caloocan"; "the office near Ayala Ave, Makati" -> "Ayala Ave, Makati". Null if
+        latitude/longitude were given explicitly instead of a named place.)
       - year (integer, {min_year}-{max_year} — this is the real coverage of the configured
         Himawari (Asia/Pacific) NSRDB dataset; do not output a year outside this range)
       - start_month / end_month (integers 1-12, e.g. February = 2)
       - attributes (list of requested data fields, e.g. ["ghi", "dni", "dhi", "air_temperature"])
 
     If a field is missing or cannot be inferred from context or memory, leave it null
-    rather than guessing. Do not invent coordinates for a location you cannot resolve.
+    rather than guessing.
     Respond with ONE valid JSON object only — no prose, no markdown, no extra text before
     or after it. Use JSON syntax exactly: double-quoted keys/strings, `null` (not "None" or
     "Null"), numbers without quotes, no trailing commas, no duplicate keys.
@@ -35,8 +43,9 @@ intent_parser:
     - user: "Give me the monthly average irradiation from Feb to June in 2019 at our warehouse location in Caloocan."
       output:
         location_name: "warehouse location in Caloocan"
-        latitude: 14.6499
-        longitude: 120.9833
+        geocode_query: "Caloocan"
+        latitude: null
+        longitude: null
         year: 2019
         start_month: 2
         end_month: 6
@@ -44,6 +53,7 @@ intent_parser:
     - user: "What was the DNI like in 2018 at 10.3, 123.9?"
       output:
         location_name: null
+        geocode_query: null
         latitude: 10.3
         longitude: 123.9
         year: 2018

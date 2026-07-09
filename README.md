@@ -88,6 +88,7 @@ flowchart TD
 ├── src/
 │   ├── agent.py            # ReAct orchestrator — ties every module together
 │   ├── database.py         # NREL/NSRDB HTTP client
+│   ├── geocoding.py        # Place name -> real lat/lon (OpenStreetMap Nominatim)
 │   ├── guardrails.py       # Input/output validation
 │   └── memory.py           # Short-term per-session memory
 ├── utils/
@@ -115,7 +116,7 @@ flowchart TD
 | Memory | [`src/memory.py`](src/memory.py) `SessionMemory` — remembers the last resolved location, year, attributes, and turn history per session | _TODO: name_ |
 | Guardrails | [`src/guardrails.py`](src/guardrails.py) — topic allow-list for input, raw-error-leak detection for output | _TODO: name_ |
 | ReAct Agent | [`src/agent.py`](src/agent.py) `_run_react_loop()` — bounded Thought/Action/Observation loop over `fetch_solar_data`/`aggregate_monthly` | _TODO: name_ |
-| Tool Use | [`src/database.py`](src/database.py) — real HTTP GET integration with the NREL/NSRDB API | _TODO: name_ |
+| Tool Use | [`src/database.py`](src/database.py) — real HTTP GET integration with the NREL/NSRDB API; [`src/geocoding.py`](src/geocoding.py) — resolves a named place to real coordinates via OpenStreetMap Nominatim, so the agent almost never has to ask the user for latitude/longitude directly | _TODO: name_ |
 | Chat UI | [`app/ui.py`](app/ui.py) — Streamlit conversational interface with a live metrics sidebar | _TODO: name_ |
 | API Endpoint | [`api/main.py`](api/main.py) — FastAPI REST endpoint (`/chat`, `/health`) | _TODO: name_ |
 | LLMOps Monitoring | [`utils/telemetry.py`](utils/telemetry.py) — `@trace_agent`/`@trace_tool`/`@trace_llm` MLflow span decorators, with secret redaction | _TODO: name_ |
@@ -508,3 +509,8 @@ grouped — adjust to match your actual team size and who built what:
   [Switching the LLM model](#switching-the-llm-model). Even with `qwen2.5:7b`,
   this is a 7B local model, not a frontier hosted one; don't expect
   perfection on queries far outside the few-shot example's phrasing.
+- Location resolution (`src/geocoding.py`) depends on OpenStreetMap's free
+  public Nominatim service — no API key, but rate-limited (1 request/second)
+  and with no uptime guarantee. A location it can't match (a typo, or a
+  description too vague to be a real place) still falls back to asking the
+  user directly, same as before this existed.
