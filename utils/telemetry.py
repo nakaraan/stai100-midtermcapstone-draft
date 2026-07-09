@@ -1,14 +1,3 @@
-"""Reusable MLflow tracing decorators for AGENT P's LLMOps observability layer.
-
-Adapted from the manual `mlflow.start_span(...)` blocks in the sample RAG app's
-`logging_middleware.py` (see `sample_rag_app_implementation.md`), which wrapped a
-single traced_chat() call with nested "chat_request" / "rag_retrieval" /
-"llm_inference" spans. Here the same span-per-stage idea is generalized into three
-decorators — `@trace_agent`, `@trace_tool`, `@trace_llm` — so any function can be
-traced by annotation instead of hand-nesting `with mlflow.start_span(...)` blocks
-at every call site.
-"""
-
 from __future__ import annotations
 
 import functools
@@ -26,15 +15,12 @@ F = TypeVar("F", bound=Callable[..., Any])
 _MAX_ATTR_LEN = 500
 _configured = False
 
-# Query-string secrets (e.g. NREL download URLs carry `api_key=...`) must never
-# reach a trace attribute, since MLflow traces are viewed outside this process.
 _SECRET_PARAM_PATTERN = re.compile(
     r"(api[_-]?key|apikey|token|password|secret)=[^&\s'\"]+", re.IGNORECASE
 )
 
 
 def _ensure_mlflow_configured() -> None:
-    """Point MLflow at the configured tracking/registry URIs and experiment, once."""
     global _configured
     if _configured:
         return
@@ -47,13 +33,7 @@ def _ensure_mlflow_configured() -> None:
 
 
 def redact_secrets(text: str) -> str:
-    """Strip query-string secrets (api_key=..., token=..., etc.) from any text.
-
-    Public because call sites outside this module need the same protection —
-    e.g. an agent loop relaying a caught exception's message back into an LLM
-    conversation, where an unredacted API key could otherwise be transmitted
-    to a hosted LLM provider, not just logged to a trace.
-    """
+    # Strip query-string secrets.
     return _SECRET_PARAM_PATTERN.sub(r"\1=***REDACTED***", text)
 
 
@@ -69,13 +49,7 @@ def _truncate(value: Any) -> str:
 
 
 def _span_decorator(span_type: str, extra_attrs: Callable[[Any, tuple, dict], dict]):
-    """Build a decorator that wraps a function in an `mlflow.start_span` of `span_type`.
-
-    Handles both `@trace_x` and `@trace_x(name="...")` usage, records latency and
-    success/error status on every call, and delegates to `extra_attrs(result, args,
-    kwargs)` for span-specific attributes (e.g. token usage for LLM calls, record
-    counts for tool calls).
-    """
+    # Decorator for wrapping a function in an `mlflow.start_span` of `span_type`.
 
     def decorator(func: F | None = None, *, name: str | None = None) -> F:
         def wrap(fn: F) -> F:
@@ -133,7 +107,7 @@ def _llm_attrs(result: Any, args: tuple, kwargs: dict) -> dict:
     model = kwargs.get("model")
     if model is not None:
         attrs["model"] = model
-    # Mirrors the sample app's `complete_with_usage()` shape: (text, usage_dict).
+
     if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], dict):
         usage = result[1]
         for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
@@ -143,21 +117,5 @@ def _llm_attrs(result: Any, args: tuple, kwargs: dict) -> dict:
 
 
 trace_agent = _span_decorator(SpanType.AGENT, _agent_attrs)
-"""Trace a top-level agent orchestration loop (parse -> tool calls -> synthesis).
-
-Equivalent to the sample app's outer "chat_request" CHAIN span, but scoped as
-SpanType.AGENT since this wraps the whole agentic turn, not just one chain step.
-"""
-
 trace_tool = _span_decorator(SpanType.TOOL, _tool_attrs)
-"""Trace an external tool call (e.g. the NREL/NSRDB API request).
-
-Equivalent to the sample app's "rag_retrieval" RETRIEVER span, generalized to
-SpanType.TOOL for any external data-fetching call.
-"""
-
 trace_llm = _span_decorator(SpanType.LLM, _llm_attrs)
-"""Trace a single LLM call, capturing model name and token usage when available.
-
-Equivalent to the sample app's "llm_inference" LLM span.
-"""

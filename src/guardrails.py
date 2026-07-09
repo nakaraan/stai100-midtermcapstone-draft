@@ -1,11 +1,4 @@
-"""Input/output guardrails for AGENT P.
-
-Two responsibilities, mirroring the guardrail split in the sample RAG app
-(`is_on_topic()` / `output_validator()` in `sample_rag_app_implementation.md`):
-  1. Reject user inputs that aren't about solar irradiation, weather, or location data.
-  2. Prevent raw JSON error payloads, tracebacks, or exception dumps (e.g. a failed
-     NREL API call) from leaking into a user-facing response.
-"""
+#Input/output guardrails for AGENT P
 
 from __future__ import annotations
 
@@ -46,16 +39,11 @@ _FALLBACK_ERROR_MESSAGE = (
 
 
 class GuardrailViolation(ValueError):
-    """Raised when user input fails the on-topic guardrail."""
+    #For when user input fails the on-topic guardrail
 
 
 def is_on_topic(text: str, classifier: Optional[Callable[[str], bool]] = None) -> bool:
-    """Check whether `text` is about solar, weather, or location data.
-
-    Literal keyword/pattern match first; if that fails and a `classifier` (e.g. an
-    LLM-backed semantic check) is supplied, fall back to it. This mirrors the
-    literal-then-semantic hybrid match pattern used for topic classification.
-    """
+    #Check whether `text` is about solar, weather, or location data
     if not text or not text.strip():
         return False
     lowered = text.lower()
@@ -69,10 +57,7 @@ def is_on_topic(text: str, classifier: Optional[Callable[[str], bool]] = None) -
 
 
 def validate_input(text: str, classifier: Optional[Callable[[str], bool]] = None) -> str:
-    """Raise GuardrailViolation if `text` isn't about solar/weather/location data.
-
-    Returns the stripped input when it passes.
-    """
+    #Returns the stripped input when if `text` isn't about solar/weather/location data
     cleaned = (text or "").strip()
     if not cleaned:
         raise GuardrailViolation("Input is empty.")
@@ -85,7 +70,7 @@ def validate_input(text: str, classifier: Optional[Callable[[str], bool]] = None
 
 
 def contains_raw_error_leak(text: str) -> bool:
-    """Detect raw JSON error payloads, tracebacks, or exception dumps in candidate output."""
+    #Detect raw JSON error payloads, tracebacks, or exception dumps in candidate output.
     if not text:
         return False
     stripped = text.strip()
@@ -106,7 +91,7 @@ def contains_raw_error_leak(text: str) -> bool:
 
 
 def sanitize_output(text: str) -> str:
-    """Replace a leaked raw error with a safe, generic fallback message."""
+    #Replace a leaked raw error with a generic fallback message.
     if contains_raw_error_leak(text):
         return _FALLBACK_ERROR_MESSAGE
     return text

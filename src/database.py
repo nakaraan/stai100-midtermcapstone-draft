@@ -1,13 +1,4 @@
-"""NREL/NSRDB HTTP client for AGENT P.
-
-Fetches hourly solar irradiance data for a given site/year from the NREL
-NSRDB API, then parses and time-filters it into the monthly window the user
-actually asked for. Follows the small-function, dict-in/dict-out style used
-throughout the Week 2-4 notebooks (see notebook2.py, notebook4.py): each step
-is a standalone function, and parsing failures degrade gracefully rather than
-raising deep into a pipeline.
-"""
-
+#NREL/NSRDB HTTP client for AGENT P
 from __future__ import annotations
 
 import csv
@@ -35,7 +26,6 @@ DOWNLOAD_RETRY_DELAYS_SECONDS = (2, 4, 8)
 
 
 class _CurlResponse:
-    """Minimal requests.Response-alike backing _curl_get()."""
 
     def __init__(self, status_code: int, headers: dict, content: bytes):
         self.status_code = status_code
@@ -57,15 +47,7 @@ class _CurlResponse:
 
 
 def _curl_get(url: str, params: Optional[dict] = None, timeout: int = 60) -> _CurlResponse:
-    """GET via the curl.exe binary instead of the `requests` library.
-
-    Workaround for a machine-specific issue where Python's own requests/socket
-    stack hangs indefinitely on outbound HTTPS calls to NREL (DNS, hosts-file
-    override, raw socket connects, and NO_PROXY were all tried and ruled out
-    as the cause), while curl.exe reliably connects and responds in well under
-    a second on the same network. Shelling out to the known-working binary was
-    the fastest reliable fix available before a deadline.
-    """
+    #Perform a GET request (curl.exe) to avoid Python SSL issues.
     full_url = f"{url}?{urlencode(params)}" if params else url
     body_fd, body_path = tempfile.mkstemp()
     header_fd, header_path = tempfile.mkstemp()
@@ -98,7 +80,7 @@ def _curl_get(url: str, params: Optional[dict] = None, timeout: int = 60) -> _Cu
 
 
 def _wkt_point(latitude: float, longitude: float) -> str:
-    """NREL expects site location as Well-Known Text: POINT(longitude latitude)."""
+    #NREL expects site location as POINT(longitude latitude).
     return f"POINT({longitude} {latitude})"
 
 
@@ -124,7 +106,7 @@ def _build_query_params(
     }
 
 
-# ── HTTP GET calls — traced as TOOL spans ───────────────────────────────────
+#HTTP GET calls — traced as TOOL spans
 
 @trace_tool(name="nrel_nsrdb_request")
 def fetch_nsrdb_data(
@@ -136,13 +118,8 @@ def fetch_nsrdb_data(
     leap_day: bool = False,
     utc: bool = False,
 ) -> requests.Response:
-    """GET hourly solar data for one site/year from the configured NSRDB endpoint.
+    #GET hourly solar data for one site/year from the configured NSRDB endpoint.
 
-    Depending on the endpoint suffix, NREL returns either the CSV body directly
-    (`*-download.csv`) or a JSON payload with an `outputs.downloadUrl` pointing
-    to the CSV (`*-download.json`, used for larger on-demand requests). Both
-    cases are handled by `get_irradiance_for_period()` below.
-    """
     settings = get_settings()
     params = _build_query_params(latitude, longitude, year, attributes, interval, leap_day, utc)
     response = _curl_get(
@@ -156,12 +133,7 @@ def fetch_nsrdb_data(
 
 @trace_tool(name="nrel_nsrdb_csv_download")
 def download_nsrdb_csv(download_url: str) -> str:
-    """GET the actual CSV body from an NREL-provided download link.
-
-    The link points to a ZIP archive bundling the CSV (not raw CSV text), and
-    can briefly 403/404 before the async export job finishes uploading —
-    both handled here.
-    """
+    #GET the actual CSV body from an NREL-provided download link.
     settings = get_settings()
     last_exc: Optional[Exception] = None
     for delay in (0, *DOWNLOAD_RETRY_DELAYS_SECONDS):
@@ -175,12 +147,12 @@ def download_nsrdb_csv(download_url: str) -> str:
             status = exc.response.status_code if exc.response is not None else None
             if status not in (403, 404):
                 raise
-            last_exc = exc  # likely the export job hasn't finished uploading yet — retry
+            last_exc = exc  # retry export job if unfinished upload
     raise last_exc
 
 
 def _unwrap_csv(response: requests.Response) -> str:
-    """Return CSV text, unzipping first if NREL bundled the CSV in a ZIP archive."""
+    #Return CSV text
     content_type = response.headers.get("Content-Type", "")
     if "zip" in content_type or response.content[:2] == b"PK":
         with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
@@ -191,15 +163,9 @@ def _unwrap_csv(response: requests.Response) -> str:
     return response.text
 
 
-# ── Parsing — no network I/O, so not a tool span ────────────────────────────
-
+#Parsing
 def parse_nsrdb_records(csv_text: str) -> list[dict]:
-    """Parse an NSRDB CSV export into hourly records.
-
-    NSRDB CSVs have a 2-row site metadata header, then a data header row, then
-    one row per timestep (Year, Month, Day, Hour, Minute, GHI, DNI, ...).
-    Numeric fields are coerced to float/int; anything else is left as a string.
-    """
+    #Parse an NSRDB CSV export into hourly records.
     rows = list(csv.reader(io.StringIO(csv_text)))
     if len(rows) < 3:
         return []
@@ -230,7 +196,7 @@ def _extract_csv_text(response: requests.Response) -> str:
     return response.text
 
 
-# ── Public entry point — lat/lon + time period -> monthly-filtered records ──
+#Public entry point
 
 def get_irradiance_for_period(
     latitude: float,
@@ -240,7 +206,7 @@ def get_irradiance_for_period(
     end_month: int = 12,
     attributes: Optional[list[str]] = None,
 ) -> list[dict]:
-    """Fetch NSRDB hourly records for a site/year, filtered to [start_month, end_month]."""
+    #Fetch NSRDB hourly records for a site/year, filtered to start_month and end_month
     response = fetch_nsrdb_data(latitude, longitude, year, attributes=attributes)
     csv_text = _extract_csv_text(response)
     records = parse_nsrdb_records(csv_text)
