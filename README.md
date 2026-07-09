@@ -133,8 +133,7 @@ flowchart TD
 
 ## Running the project
 
-**Everything below is plain commands, run by hand — no scripts, no wrapper
-tooling required.** Four terminal windows, each running one piece, is the
+**Everything below is plain commands** Four terminal windows, each running one piece, is the
 whole setup. Every terminal window is independent: if you close one, only
 that one piece goes down.
 
